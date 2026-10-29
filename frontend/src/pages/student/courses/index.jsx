@@ -1,0 +1,307 @@
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { filterOptions, sortOptions } from "@/config";
+import { StudentContext } from "@/context/student-context";
+import { fetchStudentViewCourseListService } from "@/services";
+import { ArrowUpDownIcon } from "lucide-react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+
+function createSearchParamsHelper(filterParams) {
+  const queryParams = [];
+
+  for (const [key, value] of Object.entries(filterParams)) {
+    if (Array.isArray(value) && value.length > 0) {
+      const paramValue = value.join(",");
+
+      queryParams.push(`${key}=${encodeURIComponent(paramValue)}`);
+    }
+  }
+
+  return queryParams.join("&");
+}
+
+function StudentViewCoursesPage() {
+  const [sort, setSort] = useState("title-atoz");
+  const [filters, setFilters] = useState({});
+  const [searchError, setSearchError] = useState("");
+  const requestIdRef = useRef(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search") || "";
+  const {
+    studentViewCoursesList,
+    setStudentViewCoursesList,
+    loadingState,
+    setLoadingState,
+  } = useContext(StudentContext);
+  const navigate = useNavigate();
+  const visibleCourses = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase();
+    if (!query) return studentViewCoursesList;
+
+    return studentViewCoursesList.filter((course) =>
+      [
+        course?.title,
+        course?.subtitle,
+        course?.description,
+        course?.instructorName,
+      ].some((value) => value?.toLocaleLowerCase().includes(query))
+    );
+  }, [searchQuery, studentViewCoursesList]);
+
+  function handleFilterOnChange(getSectionId, getCurrentOption) {
+    const selectedOptions = filters[getSectionId] || [];
+    const nextSelectedOptions = selectedOptions.includes(getCurrentOption.id)
+      ? selectedOptions.filter((id) => id !== getCurrentOption.id)
+      : [...selectedOptions, getCurrentOption.id];
+    const cpyFilters = { ...filters };
+
+    if (nextSelectedOptions.length) cpyFilters[getSectionId] = nextSelectedOptions;
+    else delete cpyFilters[getSectionId];
+
+    setFilters(cpyFilters);
+    sessionStorage.setItem("filters", JSON.stringify(cpyFilters));
+  }
+
+  const fetchAllStudentViewCourses = useCallback(async (filters, sort) => {
+    const requestId = ++requestIdRef.current;
+    const query = new URLSearchParams({
+      ...filters,
+      sortBy: sort,
+    });
+    if (searchQuery.trim()) query.set("search", searchQuery.trim());
+
+    setSearchError("");
+    setStudentViewCoursesList([]);
+    setLoadingState(true);
+
+    try {
+      const response = await fetchStudentViewCourseListService(query);
+      if (requestId !== requestIdRef.current) return;
+
+      if (!response?.success) {
+        throw new Error(response?.message || "Could not load courses.");
+      }
+
+      setStudentViewCoursesList(response.data || []);
+    } catch (error) {
+      if (requestId !== requestIdRef.current) return;
+      setStudentViewCoursesList([]);
+      setSearchError(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Could not load courses. Please try again."
+      );
+    } finally {
+      if (requestId === requestIdRef.current) setLoadingState(false);
+    }
+  }, [searchQuery, setLoadingState, setStudentViewCoursesList]);
+
+  async function handleCourseNavigate(getCurrentCourseId) {
+    navigate(`/course/details/${getCurrentCourseId}`);
+  }
+
+  useEffect(() => {
+    const buildQueryStringForFilters = createSearchParamsHelper(filters);
+    const params = new URLSearchParams(buildQueryStringForFilters);
+    if (searchQuery) params.set("search", searchQuery);
+    setSearchParams(params);
+  }, [filters, searchQuery, setSearchParams]);
+
+  useEffect(() => {
+    setSort("title-atoz");
+    const storedFilters = JSON.parse(sessionStorage.getItem("filters")) || {};
+    delete storedFilters.primaryLanguage;
+    const examProgramIds = filterOptions.category.map((option) => option.id);
+    if (Array.isArray(storedFilters.category)) {
+      storedFilters.category = storedFilters.category.filter((id) =>
+        examProgramIds.includes(id)
+      );
+      if (storedFilters.category.length === 0) delete storedFilters.category;
+    } else {
+      delete storedFilters.category;
+    }
+    setFilters(storedFilters);
+    sessionStorage.setItem("filters", JSON.stringify(storedFilters));
+  }, []);
+
+  useEffect(() => {
+    if (filters !== null && sort !== null)
+      fetchAllStudentViewCourses(filters, sort);
+    return () => {
+      requestIdRef.current += 1;
+    };
+  }, [fetchAllStudentViewCourses, filters, sort]);
+
+  useEffect(() => {
+    return () => {
+      sessionStorage.removeItem("filters");
+    };
+  }, []);
+
+  return (
+    <main className="mx-auto min-h-[calc(100vh-4rem)] max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mb-8">
+        <p className="text-sm font-medium text-blue-700">
+          IELTS &amp; PTE preparation
+        </p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
+          Explore preparation courses
+        </h1>
+        <p className="mt-2 text-slate-500">
+          Find focused lessons and practice materials for your English test.
+        </p>
+      </div>
+      <div className="flex flex-col gap-6 lg:flex-row">
+        <aside className="h-fit w-full rounded-xl border border-slate-200 bg-white lg:sticky lg:top-24 lg:w-64">
+          <div>
+            {Object.keys(filterOptions).map((sectionItem) => (
+              <div className="border-b border-slate-100 p-4 last:border-b-0" key={sectionItem}>
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  {sectionItem === "category"
+                    ? "Exam program"
+                    : sectionItem.replace(/([A-Z])/g, " $1")}
+                </h3>
+                <div className="mt-2 grid gap-2.5">
+                  {filterOptions[sectionItem].map((option) => (
+                    <Label key={option.id} className="flex cursor-pointer items-center gap-3 text-sm font-normal text-slate-700">
+                      <Checkbox
+                        checked={
+                          filters &&
+                          Object.keys(filters).length > 0 &&
+                          filters[sectionItem] &&
+                          filters[sectionItem].includes(option.id)
+                        }
+                        onCheckedChange={() =>
+                          handleFilterOnChange(sectionItem, option)
+                        }
+                      />
+                      {option.label}
+                    </Label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+        <section className="min-w-0 flex-1">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
+            <span className="text-sm text-slate-500">
+              <span className="font-semibold text-slate-900">
+                {loadingState ? "…" : visibleCourses.length}
+              </span>{" "}
+              {visibleCourses.length === 1 ? "course" : "courses"}
+            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="h-10 gap-2 rounded-lg border-slate-200"
+                >
+                  <ArrowUpDownIcon className="h-4 w-4" />
+                  <span className="font-medium">Sort by</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[180px]">
+                <DropdownMenuRadioGroup
+                  value={sort}
+                  onValueChange={(value) => setSort(value)}
+                >
+                  {sortOptions.map((sortItem) => (
+                    <DropdownMenuRadioItem
+                      value={sortItem.id}
+                      key={sortItem.id}
+                    >
+                      {sortItem.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="space-y-4">
+            {loadingState ? (
+              <Skeleton />
+            ) : searchError ? (
+              <div
+                role="alert"
+                className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-8 text-center"
+              >
+                <p className="font-medium text-rose-800">{searchError}</p>
+              </div>
+            ) : visibleCourses.length > 0 ? (
+              visibleCourses.map((courseItem) => (
+                <Card
+                  onClick={() => handleCourseNavigate(courseItem?._id)}
+                  className="cursor-pointer overflow-hidden rounded-xl border-slate-200 shadow-sm transition-shadow hover:shadow-md"
+                  key={courseItem?._id}
+                >
+                  <CardContent className="flex flex-col gap-4 p-4 sm:flex-row">
+                    <div className="h-44 w-full shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:h-32 sm:w-48">
+                      <img
+                        src={courseItem?.image}
+                        alt={courseItem?.title || "Course"}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <CardTitle className="mb-2 text-lg font-semibold text-slate-900">
+                        {courseItem?.title}
+                      </CardTitle>
+                      <p className="mb-1 text-sm text-slate-500">
+                        Created By{" "}
+                        <span className="font-medium text-slate-700">
+                          {courseItem?.instructorName}
+                        </span>
+                      </p>
+                      <p className="mb-2 mt-3 text-sm text-slate-500">
+                        {`${courseItem?.curriculum?.length} ${
+                          courseItem?.curriculum?.length <= 1
+                            ? "Lecture"
+                            : "Lectures"
+                        } - ${courseItem?.level.toUpperCase()} Level`}
+                      </p>
+                      <p className="text-sm font-medium text-emerald-700">
+                        English test preparation
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {searchQuery.trim()
+                    ? `No courses found for “${searchQuery.trim()}”`
+                    : "No courses found"}
+                </h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  Try another search or adjust your filters.
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
+export default StudentViewCoursesPage;

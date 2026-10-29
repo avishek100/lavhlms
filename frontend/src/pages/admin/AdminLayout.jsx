@@ -1,0 +1,110 @@
+import { AuthContext } from "@/context/auth-context";
+import { Button } from "@/components/ui/button";
+import {
+  BookOpen,
+  GraduationCap,
+  LayoutDashboard,
+  LogOut,
+  Megaphone,
+  UserRoundCog,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import { useContext } from "react";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+
+const navigationItems = [
+  { label: "Dashboard", to: "/admin", icon: LayoutDashboard, end: true },
+  { label: "Students", to: "/admin/students", icon: Users, end: true },
+  { label: "Add Student", to: "/admin/students/new", icon: UserPlus },
+  { label: "Teachers", to: "/admin/teachers", icon: UserRoundCog, end: true },
+  { label: "Add Teacher", to: "/admin/teachers/new", icon: UserPlus },
+  { label: "Courses", to: "/admin/courses", icon: BookOpen },
+  { label: "Notices", to: "/admin/notices", icon: Megaphone },
+];
+
+export default function AdminLayout() {
+  const { auth, resetCredentials } = useContext(AuthContext);
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    resetCredentials();
+    sessionStorage.removeItem("filters");
+    navigate("/login");
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 md:flex">
+      <aside className="border-b border-slate-200 bg-white md:min-h-screen md:w-64 md:shrink-0 md:border-b-0 md:border-r">
+        <div className="p-4 md:sticky md:top-0 md:p-5">
+          <Link to="/admin" className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-700 text-white">
+              <GraduationCap aria-hidden="true" className="h-5 w-5" />
+            </span>
+            <span className="font-semibold tracking-tight text-slate-900">
+              IELTS &amp; PTE Prep
+            </span>
+          </Link>
+          <p className="mb-2 mt-6 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Administration
+          </p>
+          <nav
+            className="flex gap-1 overflow-x-auto md:block md:space-y-1"
+            aria-label="Admin navigation"
+          >
+            {navigationItems.map(({ label, to, icon: Icon, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                className={({ isActive }) =>
+                  `flex h-10 shrink-0 items-center rounded-lg px-3 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-blue-50 text-blue-800"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`
+                }
+              >
+                <Icon aria-hidden="true" className="mr-2 h-4 w-4" />
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="mt-5 hidden border-t border-slate-100 pt-4 md:block">
+            <p className="truncate px-3 text-sm text-slate-500">
+              {auth?.user?.userName}
+            </p>
+            <Button
+              variant="ghost"
+              className="mt-2 h-10 w-full justify-start rounded-lg px-3 text-slate-600 hover:text-slate-900"
+              onClick={handleLogout}
+            >
+              <LogOut aria-hidden="true" className="mr-2 h-4 w-4" />
+              Sign out
+            </Button>
+          </div>
+        </div>
+      </aside>
+
+      <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-10">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-6 flex items-center justify-between border-b border-slate-200 pb-4 md:hidden">
+            <span className="truncate text-sm text-slate-500">
+              {auth?.user?.userName}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+              onClick={handleLogout}
+            >
+              <LogOut aria-hidden="true" className="mr-2 h-4 w-4" />
+              Sign out
+            </Button>
+          </div>
+          <Outlet />
+        </div>
+      </main>
+    </div>
+  );
+}
