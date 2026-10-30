@@ -3,6 +3,7 @@ require("dotenv").config({ path: path.resolve(__dirname, ".env") });
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
+mongoose.set("bufferCommands", false);
 const bcrypt = require("bcryptjs");
 const User = require("./models/User");
 const authRoutes = require("./routes/auth-routes/index");
@@ -36,6 +37,18 @@ app.use(
 
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+app.use((req, res, next) => {
+  if (mongoose.connection.readyState === 1) {
+    return next();
+  }
+
+  return res.status(503).json({
+    success: false,
+    code: "DATABASE_UNAVAILABLE",
+    message: "The service is temporarily unavailable while the database reconnects.",
+  });
+});
 
 async function createConfiguredAdministrator() {
   const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
