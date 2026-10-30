@@ -14,7 +14,6 @@ const emptyStudentAccount = {
   userPhone: "",
   userEmail: "",
   address: "",
-  studentClass: "",
 };
 
 export default function AdminAddStudent() {
@@ -55,7 +54,7 @@ export default function AdminAddStudent() {
           Add student
         </h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          Enter the student and guardian details to issue a college account.
+          Enter the student and guardian details to create a learning account.
         </p>
       </div>
 
@@ -108,7 +107,7 @@ export default function AdminAddStudent() {
                 autoComplete="tel"
                 value={studentAccount.parentPhone}
                 onChange={updateStudentAccount}
-                pattern="[+()0-9 .-]{7,20}"
+                pattern="[+\(\)0-9 .\-]{7,20}"
                 title="Enter a valid phone number."
                 required
               />
@@ -122,7 +121,7 @@ export default function AdminAddStudent() {
                 autoComplete="tel"
                 value={studentAccount.userPhone}
                 onChange={updateStudentAccount}
-                pattern="[+()0-9 .-]{7,20}"
+                pattern="[+\(\)0-9 .\-]{7,20}"
                 title="Enter a valid phone number."
                 required
               />
@@ -135,16 +134,6 @@ export default function AdminAddStudent() {
                 type="email"
                 autoComplete="email"
                 value={studentAccount.userEmail}
-                onChange={updateStudentAccount}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="student-class">Class / batch</Label>
-              <Input
-                id="student-class"
-                name="studentClass"
-                value={studentAccount.studentClass}
                 onChange={updateStudentAccount}
                 required
               />

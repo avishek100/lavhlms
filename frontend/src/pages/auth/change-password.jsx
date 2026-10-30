@@ -31,9 +31,7 @@ export default function ChangePasswordPage() {
       navigate(
         auth.user.role === "admin"
           ? "/admin"
-          : auth.user.role === "instructor"
-            ? "/instructor"
-            : "/home",
+          : "/home",
         { replace: true }
       );
     }

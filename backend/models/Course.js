@@ -15,7 +15,7 @@ const CourseSchema = new mongoose.Schema({
   studentClass: { type: String, trim: true },
   date: Date,
   title: String,
-  category: String,
+  category: { type: String, trim: true, maxlength: 60 },
   level: String,
   primaryLanguage: String,
   subtitle: String,

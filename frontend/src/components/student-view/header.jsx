@@ -15,6 +15,8 @@ function StudentViewCommonHeader() {
   const navigate = useNavigate();
   const { auth, resetCredentials } = useContext(AuthContext);
   const [profileImage, setProfileImage] = useState("");
+  const isPendingApproval =
+    auth?.user?.role === "student" && auth.user.approved === false;
 
   useEffect(() => {
     if (auth?.user?.role !== "student") {
@@ -90,13 +92,17 @@ function StudentViewCommonHeader() {
               <span className="sm:hidden">All</span>
             </Link>
           </Button>
-          <Button
-            asChild
-            variant="ghost"
-            className="text-slate-600 hover:text-blue-700"
-          >
-            <Link to="/student-courses">My courses</Link>
-          </Button>
+          {!isPendingApproval && auth?.user?.role === "student" && (
+            <>
+              <Button
+                asChild
+                variant="ghost"
+                className="text-slate-600 hover:text-blue-700"
+              >
+                <Link to="/student-courses">My courses</Link>
+              </Button>
+            </>
+          )}
           {auth?.user?.role === "student" && (
             <Button
               asChild
@@ -146,7 +152,7 @@ function StudentViewCommonHeader() {
             >
               Sign in
             </Button>
-          ) : auth?.user?.role !== "student" ? (
+          ) : (
             <Button
               variant="outline"
               onClick={handleLogout}
@@ -155,7 +161,7 @@ function StudentViewCommonHeader() {
               <LogOut aria-hidden="true" className="h-4 w-4" />
               <span className="hidden sm:inline">Sign out</span>
             </Button>
-          ) : null}
+          )}
         </div>
       </nav>
     </header>

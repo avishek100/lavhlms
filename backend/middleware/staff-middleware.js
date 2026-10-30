@@ -1,8 +1,8 @@
 const authorizeStaff = (req, res, next) => {
-  if (!["admin", "instructor"].includes(req.user?.role)) {
+  if (req.user?.role !== "admin") {
     return res.status(403).json({
       success: false,
-      message: "Staff access is required.",
+      message: "Administrator access is required.",
     });
   }
 

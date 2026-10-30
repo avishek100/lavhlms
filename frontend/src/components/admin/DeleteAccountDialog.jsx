@@ -13,9 +13,9 @@ import PropTypes from "prop-types";
 import { useEffect, useState } from "react";
 
 export default function DeleteAccountDialog({
-  account,
+  account = null,
   accountType,
-  isDeleting,
+  isDeleting = false,
   onOpenChange,
   onConfirm,
 }) {
@@ -40,8 +40,6 @@ export default function DeleteAccountDialog({
             <DialogDescription>
               This permanently deletes {account.userName}&apos;s account and
               cannot be undone.
-              {accountType === "teacher" &&
-                " Their courses will remain available to students."}
               {" "}Enter your administrator password to confirm.
             </DialogDescription>
           </DialogHeader>
@@ -83,13 +81,8 @@ DeleteAccountDialog.propTypes = {
   account: PropTypes.shape({
     userName: PropTypes.string,
   }),
-  accountType: PropTypes.oneOf(["student", "teacher"]).isRequired,
+  accountType: PropTypes.oneOf(["student"]).isRequired,
   isDeleting: PropTypes.bool,
   onOpenChange: PropTypes.func.isRequired,
   onConfirm: PropTypes.func.isRequired,
-};
-
-DeleteAccountDialog.defaultProps = {
-  account: null,
-  isDeleting: false,
 };

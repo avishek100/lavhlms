@@ -2,7 +2,13 @@ import { Navigate, useLocation } from "react-router-dom";
 import { Fragment } from "react";
 import PropTypes from "prop-types";
 
-function RouteGuard({ authenticated, user, element, requiredRole }) {
+function RouteGuard({
+  authenticated,
+  user,
+  element,
+  requiredRole,
+  requiresApproved = false,
+}) {
   const location = useLocation();
 
   if (!authenticated) {
@@ -17,25 +23,12 @@ function RouteGuard({ authenticated, user, element, requiredRole }) {
     return <Navigate to="/home" replace />;
   }
 
-  if (
-    authenticated &&
-    user?.role !== "admin" &&
-    user?.role !== "instructor" &&
-    (location.pathname.includes("instructor") ||
-      location.pathname.includes("/auth") ||
-      location.pathname === "/admin")
-  ) {
+  if (requiresApproved && user?.approved === false) {
     return <Navigate to="/home" replace />;
   }
 
-  if (
-    authenticated &&
-    user.role === "instructor" &&
-    location.pathname !== "/change-password" &&
-    !location.pathname.includes("instructor") &&
-    !location.pathname.includes("/auth")
-  ) {
-    return <Navigate to="/instructor" replace />;
+  if (location.pathname.startsWith("/admin") && user?.role !== "admin") {
+    return <Navigate to="/home" replace />;
   }
 
   return <Fragment>{element}</Fragment>;
@@ -48,7 +41,9 @@ RouteGuard.propTypes = {
   user: PropTypes.shape({
     role: PropTypes.string,
     mustChangePassword: PropTypes.bool,
+    approved: PropTypes.bool,
   }),
   element: PropTypes.element.isRequired,
   requiredRole: PropTypes.string,
+  requiresApproved: PropTypes.bool,
 };

@@ -2,15 +2,26 @@ const User = require("../../models/User");
 const Attendance = require("../../models/Attendance");
 const Course = require("../../models/Course");
 const CourseProgress = require("../../models/CourseProgress");
-const Notice = require("../../models/Notice");
 const StudentCourses = require("../../models/StudentCourses");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const fs = require("fs/promises");
 const path = require("path");
-const { randomInt, randomUUID } = require("crypto");
+const {
+  createHash,
+  randomBytes,
+  randomInt,
+  randomUUID,
+  timingSafeEqual,
+} = require("crypto");
+const verifyAdministratorPassword = require("../../utils/verify-administrator-password");
+const { sendPasswordResetOtp } = require("../../utils/email-service");
 const INITIAL_STUDENT_PASSWORD = "changepassword";
 const profileImageDirectory = path.resolve(__dirname, "../../uploads/profile-pictures");
+
+function generateStudentNumber() {
+  return `ADS${randomInt(100000, 1000000)}`;
+}
 
 function getOwnedProfileImagePath(userId, imageUrl) {
   if (typeof imageUrl !== "string" || !imageUrl.startsWith("/uploads/profile-pictures/")) {
@@ -29,7 +40,7 @@ const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
       .select(
-        "_id userName userEmail userPhone studentNumber staffNumber parentName parentPhone address studentClass role image mustChangePassword"
+        "_id userName userEmail userPhone studentNumber staffNumber parentName parentPhone address role image mustChangePassword approved"
       )
       .lean();
 
@@ -174,7 +185,7 @@ function createEmailPattern(userEmail) {
   return new RegExp(`^${escapedEmail}$`, "i");
 }
 
-const createCollegeAccount = async (req, res, role) => {
+const createStudentAccount = async (req, res) => {
   try {
     const userName =
       typeof req.body.studentName === "string"
@@ -194,25 +205,18 @@ const createCollegeAccount = async (req, res, role) => {
       typeof req.body.userEmail === "string"
         ? req.body.userEmail.trim().toLowerCase()
         : "";
-    const studentClass =
-      typeof req.body.studentClass === "string"
-        ? req.body.studentClass.trim()
-        : "";
-
     if (
       !userName ||
       !parentName ||
       !parentPhone ||
       !address ||
-      !studentClass ||
-      (role === "student" && (!userPhone || !userEmail))
+      !userPhone ||
+      !userEmail
     ) {
       return res.status(400).json({
         success: false,
         message:
-          role === "student"
-            ? "Enter the student name, parent or guardian name, student and parent phone numbers, email, address, and class or batch."
-            : "Enter the teacher name, parent or guardian name and phone, address, and class or batch.",
+          "Enter the student name, parent or guardian name, student and parent phone numbers, email, and address.",
       });
     }
 
@@ -222,10 +226,9 @@ const createCollegeAccount = async (req, res, role) => {
       !/^[+()\d\s.-]{7,20}$/.test(parentPhone) ||
       parentPhoneDigitCount < 7 ||
       parentPhoneDigitCount > 15 ||
-      (role === "student" &&
-        (!/^[+()\d\s.-]{7,20}$/.test(userPhone) ||
-          userPhoneDigitCount < 7 ||
-          userPhoneDigitCount > 15)) ||
+      !/^[+()\d\s.-]{7,20}$/.test(userPhone) ||
+      userPhoneDigitCount < 7 ||
+      userPhoneDigitCount > 15 ||
       (userEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail))
     ) {
       return res.status(400).json({
@@ -246,7 +249,7 @@ const createCollegeAccount = async (req, res, role) => {
 
     let newUser;
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      const accountNumber = `${role === "student" ? "ADS" : "ADT"}${randomInt(100000, 1000000)}`;
+      const accountNumber = generateStudentNumber();
       newUser = new User({
         userName,
         userEmail: userEmail || undefined,
@@ -254,13 +257,11 @@ const createCollegeAccount = async (req, res, role) => {
         parentName,
         parentPhone,
         address,
-        studentClass,
-        ...(role === "student"
-          ? { studentNumber: accountNumber }
-          : { staffNumber: accountNumber }),
-        role,
+        studentNumber: accountNumber,
+        role: "student",
         collegeIssued: true,
         active: true,
+        approved: true,
         mustChangePassword: true,
         password: await bcrypt.hash(INITIAL_STUDENT_PASSWORD, 10),
       });
@@ -276,7 +277,7 @@ const createCollegeAccount = async (req, res, role) => {
 
     return res.status(201).json({
       success: true,
-      message: `${role === "student" ? "Student" : "Teacher"} account created successfully.`,
+      message: "Student account created successfully.",
       data: {
         _id: newUser._id,
         userName: newUser.userName,
@@ -285,27 +286,106 @@ const createCollegeAccount = async (req, res, role) => {
         parentName: newUser.parentName,
         parentPhone: newUser.parentPhone,
         address: newUser.address,
-        studentClass: newUser.studentClass,
         studentNumber: newUser.studentNumber,
-        staffNumber: newUser.staffNumber,
         role: newUser.role,
         initialPassword: INITIAL_STUDENT_PASSWORD,
       },
     });
   } catch (error) {
-    console.error(`Unable to create ${role} account:`, error);
+    console.error("Unable to create student account:", error);
     return res.status(500).json({
       success: false,
-      message: `Unable to create the ${role} account.`,
+      message: "Unable to create the student account.",
     });
   }
 };
 
-const createStudentAccount = (req, res) =>
-  createCollegeAccount(req, res, "student");
+const registerStudentAccount = async (req, res) => {
+  try {
+    const userName =
+      typeof req.body.studentName === "string" ? req.body.studentName.trim() : "";
+    const userEmail =
+      typeof req.body.userEmail === "string"
+        ? req.body.userEmail.trim().toLowerCase()
+        : "";
+    const userPhone =
+      typeof req.body.userPhone === "string" ? req.body.userPhone.trim() : "";
+    const password = req.body.password;
 
-const createTeacherAccount = (req, res) =>
-  createCollegeAccount(req, res, "instructor");
+    if (!userName || !userEmail || !userPhone || typeof password !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Enter your name, email, phone number, and password.",
+      });
+    }
+
+    const phoneDigitCount = userPhone.replace(/\D/g, "").length;
+    if (
+      userName.length > 100 ||
+      userEmail.length > 254 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail) ||
+      !/^[+()\d\s.-]{7,20}$/.test(userPhone) ||
+      phoneDigitCount < 7 ||
+      phoneDigitCount > 15 ||
+      password.length < 8 ||
+      password.length > 128
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Use a valid email and phone number, and a password between 8 and 128 characters.",
+      });
+    }
+
+    if (await User.exists({ userEmail: createEmailPattern(userEmail) })) {
+      return res.status(409).json({
+        success: false,
+        message: "This email address is already assigned to an account.",
+      });
+    }
+
+    let newUser;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      newUser = new User({
+        userName,
+        userEmail,
+        userPhone,
+        studentNumber: generateStudentNumber(),
+        role: "student",
+        collegeIssued: true,
+        active: true,
+        approved: false,
+        mustChangePassword: false,
+        password: await bcrypt.hash(password, 10),
+      });
+
+      try {
+        await newUser.save();
+        break;
+      } catch (error) {
+        if (error.code !== 11000 || attempt === 4) throw error;
+        newUser = null;
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Registration submitted. Your account is waiting for admin approval.",
+      data: {
+        userName: newUser.userName,
+        userEmail: newUser.userEmail,
+        studentNumber: newUser.studentNumber,
+        approved: newUser.approved,
+      },
+    });
+  } catch (error) {
+    console.error("Unable to register student:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to submit your registration.",
+    });
+  }
+};
 
 const getStudents = async (req, res) => {
   try {
@@ -314,7 +394,7 @@ const getStudents = async (req, res) => {
       collegeIssued: true,
     })
       .select(
-        "_id userName userEmail userPhone studentNumber parentName parentPhone address studentClass active"
+        "_id userName userEmail userPhone studentNumber parentName parentPhone address active approved"
       )
       .sort({ userName: 1 })
       .lean();
@@ -325,80 +405,6 @@ const getStudents = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Unable to load students.",
-    });
-  }
-};
-
-const getTeachers = async (req, res) => {
-  try {
-    const query = {
-      role: "instructor",
-      collegeIssued: true,
-    };
-    const adminEmail = process.env.ADMIN_EMAIL?.trim();
-    if (adminEmail) {
-      query.userEmail = { $not: createEmailPattern(adminEmail) };
-    }
-    const teachers = await User.find(query)
-      .select(
-        "_id userName userEmail staffNumber parentName parentPhone address studentClass active"
-      )
-      .sort({ userName: 1 })
-      .lean();
-
-    return res.status(200).json({ success: true, data: teachers });
-  } catch (error) {
-    console.error("Unable to load teachers:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Unable to load teachers.",
-    });
-  }
-};
-
-const updateTeacherStatus = async (req, res) => {
-  try {
-    if (typeof req.body.active !== "boolean") {
-      return res.status(400).json({
-        success: false,
-        message: "Choose whether the teacher account should be active.",
-      });
-    }
-
-    const query = {
-      _id: req.params.teacherId,
-      role: "instructor",
-      collegeIssued: true,
-    };
-    const adminEmail = process.env.ADMIN_EMAIL?.trim();
-    if (adminEmail) {
-      query.userEmail = { $not: createEmailPattern(adminEmail) };
-    }
-    const teacher = await User.findOneAndUpdate(
-      query,
-      { $set: { active: req.body.active } },
-      { new: true, runValidators: true }
-    ).select("_id userName staffNumber active");
-
-    if (!teacher) {
-      return res.status(404).json({
-        success: false,
-        message: "Teacher account not found.",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: req.body.active
-        ? "Teacher account unblocked."
-        : "Teacher account blocked.",
-      data: teacher,
-    });
-  } catch (error) {
-    console.error("Unable to update teacher status:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Unable to update teacher status.",
     });
   }
 };
@@ -420,7 +426,7 @@ const updateStudentStatus = async (req, res) => {
       },
       { $set: { active: req.body.active } },
       { new: true, runValidators: true }
-    ).select("_id userName studentNumber active");
+    ).select("_id userName studentNumber active approved");
 
     if (!student) {
       return res.status(404).json({
@@ -445,7 +451,49 @@ const updateStudentStatus = async (req, res) => {
   }
 };
 
-const deleteCollegeAccount = async (req, res, role) => {
+const updateStudentApproval = async (req, res) => {
+  try {
+    if (typeof req.body.approved !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "Choose whether to approve this student account.",
+      });
+    }
+
+    const student = await User.findOneAndUpdate(
+      {
+        _id: req.params.studentId,
+        role: "student",
+        collegeIssued: true,
+      },
+      { $set: { approved: req.body.approved } },
+      { new: true, runValidators: true }
+    ).select("_id userName studentNumber approved active");
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student account not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: req.body.approved
+        ? "Student account approved."
+        : "Student approval removed.",
+      data: student,
+    });
+  } catch (error) {
+    console.error("Unable to update student approval:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to update student approval.",
+    });
+  }
+};
+
+const deleteStudentAccount = async (req, res) => {
   try {
     const { adminPassword } = req.body;
     if (typeof adminPassword !== "string" || !adminPassword) {
@@ -455,16 +503,7 @@ const deleteCollegeAccount = async (req, res, role) => {
       });
     }
 
-    const administrator = await User.findById(req.user._id).select(
-      "password userEmail"
-    );
-    const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-    if (
-      !administrator ||
-      !adminEmail ||
-      administrator.userEmail?.trim().toLowerCase() !== adminEmail ||
-      !(await bcrypt.compare(adminPassword, administrator.password))
-    ) {
+    if (!(await verifyAdministratorPassword(req.user._id, adminPassword))) {
       return res.status(401).json({
         success: false,
         message: "Administrator password is incorrect.",
@@ -473,60 +512,31 @@ const deleteCollegeAccount = async (req, res, role) => {
 
     const accountQuery = {
       _id: req.params.accountId,
-      role,
+      role: "student",
       collegeIssued: true,
     };
-    if (role === "instructor") {
-      if (adminEmail) {
-        accountQuery.userEmail = { $not: createEmailPattern(adminEmail) };
-      }
-    }
 
     const account = await User.findOne(accountQuery).select("_id userName image");
     if (!account) {
       return res.status(404).json({
         success: false,
-        message: `${role === "student" ? "Student" : "Teacher"} account not found.`,
+        message: "Student account not found.",
       });
     }
 
     const accountId = String(account._id);
-    if (role === "student") {
-      await Promise.all([
-        Attendance.updateMany(
-          { "records.studentId": account._id },
-          { $pull: { records: { studentId: account._id } } }
-        ),
-        CourseProgress.deleteMany({ userId: accountId }),
-        StudentCourses.deleteMany({ userId: accountId }),
-        Course.updateMany(
-          { "students.studentId": accountId },
-          { $pull: { students: { studentId: accountId } } }
-        ),
-      ]);
-    } else {
-      await Promise.all([
-        Attendance.deleteMany({ teacherId: account._id }),
-        Notice.updateMany(
-          { teacherId: account._id },
-          {
-            $set: {
-              senderRole: "instructor",
-              senderName: account.userName,
-            },
-          }
-        ),
-        Course.updateMany(
-          { instructorId: accountId },
-          {
-            $set: {
-              instructorId: String(req.user._id),
-              instructorName: "ADS College",
-            },
-          }
-        ),
-      ]);
-    }
+    await Promise.all([
+      Attendance.updateMany(
+        { "records.studentId": account._id },
+        { $pull: { records: { studentId: account._id } } }
+      ),
+      CourseProgress.deleteMany({ userId: accountId }),
+      StudentCourses.deleteMany({ userId: accountId }),
+      Course.updateMany(
+        { "students.studentId": accountId },
+        { $pull: { students: { studentId: accountId } } }
+      ),
+    ]);
 
     await User.deleteOne({ _id: account._id });
 
@@ -541,7 +551,7 @@ const deleteCollegeAccount = async (req, res, role) => {
 
     return res.status(200).json({
       success: true,
-      message: `${role === "student" ? "Student" : "Teacher"} account deleted.`,
+      message: "Student account deleted.",
       data: { _id: accountId },
     });
   } catch (error) {
@@ -552,12 +562,6 @@ const deleteCollegeAccount = async (req, res, role) => {
     });
   }
 };
-
-const deleteStudentAccount = (req, res) =>
-  deleteCollegeAccount(req, res, "student");
-
-const deleteTeacherAccount = (req, res) =>
-  deleteCollegeAccount(req, res, "instructor");
 
 const loginUser = async (req, res) => {
   const { loginId, userEmail, password } = req.body;
@@ -581,7 +585,6 @@ const loginUser = async (req, res) => {
       : {
           $or: [
             { studentNumber: identifier.toUpperCase() },
-            { staffNumber: identifier.toUpperCase() },
           ],
         }
   );
@@ -593,12 +596,12 @@ const loginUser = async (req, res) => {
 
   if (
     checkUser &&
-    ["student", "instructor"].includes(checkUser.role) &&
+    checkUser.role === "student" &&
     !checkUser.active
   ) {
     return res.status(403).json({
       success: false,
-      message: "This college account is blocked. Contact college staff.",
+    message: "This account is blocked. Contact the administrator.",
     });
   }
 
@@ -615,21 +618,25 @@ const loginUser = async (req, res) => {
 
   if (
     !checkUser.collegeIssued &&
-    !isConfiguredAdmin &&
-    checkUser.role !== "instructor"
+    !isConfiguredAdmin
   ) {
     return res.status(403).json({
       success: false,
-      message: "This account was not issued by ADS College. Contact college staff for access.",
+      message: "This account is not authorized to sign in.",
+    });
+  }
+
+  if (!isConfiguredAdmin && checkUser.role !== "student") {
+    return res.status(403).json({
+      success: false,
+      message: "Only student and administrator accounts can sign in.",
     });
   }
 
   const userRole =
     isConfiguredAdmin
       ? "admin"
-      : checkUser.role === "instructor"
-        ? "instructor"
-        : "student";
+      : "student";
 
   const accessToken = jwt.sign(
     {
@@ -641,6 +648,7 @@ const loginUser = async (req, res) => {
       studentNumber: checkUser.studentNumber,
       staffNumber: checkUser.staffNumber,
       mustChangePassword: checkUser.mustChangePassword,
+      approved: checkUser.approved !== false,
     },
     process.env.JWT_SECRET,
     { expiresIn: "120m" }
@@ -659,9 +667,278 @@ const loginUser = async (req, res) => {
         staffNumber: checkUser.staffNumber,
         role: userRole,
         mustChangePassword: checkUser.mustChangePassword,
+        approved: checkUser.approved !== false,
       },
     },
   });
+};
+
+const requestPasswordResetOtp = async (req, res) => {
+  const userEmail =
+    typeof req.body?.email === "string"
+      ? req.body.email.trim().toLowerCase()
+      : "";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail) || userEmail.length > 254) {
+    return res.status(400).json({
+      success: false,
+      message: "Enter a valid email address.",
+    });
+  }
+
+  try {
+    const user = await User.findOne({
+      userEmail: createEmailPattern(userEmail),
+    }).select(
+      "+passwordResetOtpHash +passwordResetOtpExpiresAt +passwordResetOtpAttempts +passwordResetOtpSentAt +passwordResetTokenHash +passwordResetTokenExpiresAt"
+    );
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "We couldn't find an account with that email. Check the spelling or create an account.",
+      });
+    }
+
+    if (
+      !["student", "admin"].includes(user.role) ||
+      user.collegeIssued !== true ||
+      user.active !== true
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "This account can't use password recovery right now. Please contact an administrator.",
+      });
+    }
+
+    const now = new Date();
+    const resendWaitMs = 60 * 1000;
+    if (
+      user.passwordResetOtpSentAt &&
+      now - user.passwordResetOtpSentAt < resendWaitMs
+    ) {
+      return res.status(429).json({
+        success: false,
+        message: "Wait one minute before requesting another reset code.",
+      });
+    }
+
+    const otp = String(randomInt(100000, 1000000));
+    user.passwordResetOtpHash = await bcrypt.hash(otp, 10);
+    user.passwordResetOtpExpiresAt = new Date(now.getTime() + 10 * 60 * 1000);
+    user.passwordResetOtpAttempts = 0;
+    user.passwordResetOtpSentAt = now;
+    user.passwordResetTokenHash = undefined;
+    user.passwordResetTokenExpiresAt = undefined;
+    await user.save();
+
+    try {
+      await sendPasswordResetOtp({ recipient: user.userEmail, otp });
+    } catch (error) {
+      user.passwordResetOtpHash = undefined;
+      user.passwordResetOtpExpiresAt = undefined;
+      user.passwordResetOtpAttempts = 0;
+      user.passwordResetOtpSentAt = undefined;
+      user.passwordResetTokenHash = undefined;
+      user.passwordResetTokenExpiresAt = undefined;
+      await user.save();
+      console.error("Unable to deliver password reset OTP:", error.message);
+      return res.status(503).json({
+        success: false,
+        message: "Unable to send the reset code right now. Please try again later.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "A password reset code has been sent to your email.",
+    });
+  } catch (error) {
+    console.error("Unable to process password reset request:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to process the password reset request.",
+    });
+  }
+};
+
+const verifyPasswordResetOtp = async (req, res) => {
+  const userEmail =
+    typeof req.body?.email === "string"
+      ? req.body.email.trim().toLowerCase()
+      : "";
+  const otp =
+    typeof req.body?.otp === "string" ? req.body.otp.trim() : "";
+
+  if (
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail) ||
+    userEmail.length > 254 ||
+    !/^\d{6}$/.test(otp)
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Enter a valid email address and six-digit code.",
+    });
+  }
+
+  try {
+    const user = await User.findOne({
+      userEmail: createEmailPattern(userEmail),
+      role: { $in: ["student", "admin"] },
+      collegeIssued: true,
+      active: true,
+    }).select(
+      "+passwordResetOtpHash +passwordResetOtpExpiresAt +passwordResetOtpAttempts"
+    );
+    const otpIsAvailable =
+      user?.passwordResetOtpHash &&
+      user.passwordResetOtpExpiresAt > new Date() &&
+      user.passwordResetOtpAttempts < 5;
+
+    if (!otpIsAvailable) {
+      return res.status(400).json({
+        success: false,
+        message: "The reset code is invalid or expired. Request a new code.",
+      });
+    }
+
+    if (!(await bcrypt.compare(otp, user.passwordResetOtpHash))) {
+      user.passwordResetOtpAttempts += 1;
+      if (user.passwordResetOtpAttempts >= 5) {
+        user.passwordResetOtpHash = undefined;
+        user.passwordResetOtpExpiresAt = undefined;
+      }
+      await user.save();
+      return res.status(400).json({
+        success: false,
+        message: "The reset code is invalid or expired. Request a new code.",
+      });
+    }
+
+    const resetToken = randomBytes(32).toString("hex");
+    user.passwordResetTokenHash = createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+    user.passwordResetTokenExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    user.passwordResetOtpHash = undefined;
+    user.passwordResetOtpExpiresAt = undefined;
+    user.passwordResetOtpAttempts = 0;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Code verified. You can now choose a new password.",
+      data: { resetToken },
+    });
+  } catch (error) {
+    console.error("Unable to verify password reset code:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to verify the reset code.",
+    });
+  }
+};
+
+const resetPasswordWithToken = async (req, res) => {
+  const userEmail =
+    typeof req.body?.email === "string"
+      ? req.body.email.trim().toLowerCase()
+      : "";
+  const resetToken =
+    typeof req.body?.resetToken === "string" ? req.body.resetToken : "";
+  const newPassword = req.body?.newPassword;
+
+  if (
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail) ||
+    userEmail.length > 254 ||
+    !/^[a-f0-9]{64}$/.test(resetToken) ||
+    typeof newPassword !== "string" ||
+    newPassword.length < 8 ||
+    newPassword.length > 128
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Enter a valid email, verified reset session, and password (8–128 characters).",
+    });
+  }
+
+  try {
+    const tokenHash = createHash("sha256").update(resetToken).digest("hex");
+    const user = await User.findOne({
+      userEmail: createEmailPattern(userEmail),
+      role: { $in: ["student", "admin"] },
+      collegeIssued: true,
+      active: true,
+    }).select(
+      "+password +passwordResetOtpHash +passwordResetOtpExpiresAt +passwordResetOtpAttempts +passwordResetOtpSentAt +passwordResetTokenHash +passwordResetTokenExpiresAt"
+    );
+
+    const storedTokenHash = user?.passwordResetTokenHash;
+    const tokenIsValid =
+      typeof storedTokenHash === "string" &&
+      /^[a-f0-9]{64}$/.test(storedTokenHash) &&
+      user.passwordResetTokenExpiresAt &&
+      user.passwordResetTokenExpiresAt > new Date() &&
+      timingSafeEqual(
+        Buffer.from(storedTokenHash, "hex"),
+        Buffer.from(tokenHash, "hex")
+      );
+    if (!tokenIsValid) {
+      return res.status(400).json({
+        success: false,
+        message: "The password reset session is invalid or expired. Verify a new code.",
+      });
+    }
+
+    if (await bcrypt.compare(newPassword, user.password)) {
+      return res.status(400).json({
+        success: false,
+        message: "Choose a new password different from your current password.",
+      });
+    }
+
+    const updatedUser = await User.findOneAndUpdate(
+      {
+        _id: user._id,
+        role: { $in: ["student", "admin"] },
+        active: true,
+        passwordResetTokenHash: tokenHash,
+        passwordResetTokenExpiresAt: { $gt: new Date() },
+      },
+      {
+        $set: {
+          password: await bcrypt.hash(newPassword, 10),
+          mustChangePassword: false,
+          passwordResetOtpAttempts: 0,
+        },
+        $unset: {
+          passwordResetOtpHash: 1,
+          passwordResetOtpExpiresAt: 1,
+          passwordResetOtpSentAt: 1,
+          passwordResetTokenHash: 1,
+          passwordResetTokenExpiresAt: 1,
+        },
+      },
+      { new: true, runValidators: true }
+    );
+    if (!updatedUser) {
+      return res.status(400).json({
+        success: false,
+        message: "The password reset session is invalid or expired. Verify a new code.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Password reset successfully. You can now sign in.",
+    });
+  } catch (error) {
+    console.error("Unable to reset password:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to reset the password.",
+    });
+  }
 };
 
 const changePassword = async (req, res) => {
@@ -712,6 +989,7 @@ const changePassword = async (req, res) => {
         role: req.user.role,
         collegeIssued: true,
         mustChangePassword: false,
+        approved: user.approved !== false,
       },
       process.env.JWT_SECRET,
       { expiresIn: "120m" }
@@ -730,6 +1008,7 @@ const changePassword = async (req, res) => {
           staffNumber: user.staffNumber,
           role: req.user.role,
           mustChangePassword: false,
+          approved: user.approved !== false,
         },
       },
     });
@@ -748,6 +1027,7 @@ const getActiveStudentCount = async (req, res) => {
       role: "student",
       active: true,
       collegeIssued: true,
+      approved: { $ne: false },
     });
     return res.status(200).json({ success: true, data: { count } });
   } catch (error) {
@@ -764,16 +1044,17 @@ module.exports = {
   updateProfileImage,
   deleteProfileImage,
   createStudentAccount,
-  createTeacherAccount,
-  getTeachers,
-  updateTeacherStatus,
+  registerStudentAccount,
   getStudents,
   updateStudentStatus,
+  updateStudentApproval,
   deleteStudentAccount,
-  deleteTeacherAccount,
   getActiveStudentCount,
   changePassword,
   loginUser,
+  requestPasswordResetOtp,
+  verifyPasswordResetOtp,
+  resetPasswordWithToken,
 };
 
 

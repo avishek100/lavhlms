@@ -1,9 +1,9 @@
 export const signInFormControls = [
   {
     name: "loginId",
-    label: "Student number or staff email",
-    placeholder: "Enter your student number or email",
-    type: "text",
+    label: "Email",
+    placeholder: "Enter your email",
+    type: "email",
     componentType: "input",
   },
   {
@@ -20,16 +20,17 @@ export const initialSignInFormData = {
   password: "",
 };
 
-export const courseLevelOptions = [
-  { id: "beginner", label: "Beginner" },
-  { id: "intermediate", label: "Intermediate" },
-  { id: "advanced", label: "Advanced" },
-];
-
 export const courseExamOptions = [
   { id: "ielts-preparation", label: "IELTS Preparation" },
   { id: "pte-preparation", label: "PTE Preparation" },
 ];
+
+export function getCourseCategoryLabel(category) {
+  return (
+    courseExamOptions.find((option) => option.id === category)?.label ||
+    category
+  );
+}
 
 export const courseLandingPageFormControls = [
   {
@@ -46,14 +47,6 @@ export const courseLandingPageFormControls = [
     type: "text",
     placeholder: "",
     options: courseExamOptions,
-  },
-  {
-    name: "level",
-    label: "Level",
-    componentType: "select",
-    type: "text",
-    placeholder: "",
-    options: courseLevelOptions,
   },
   {
     name: "subtitle",
@@ -87,7 +80,6 @@ export const courseLandingPageFormControls = [
 export const courseLandingInitialFormData = {
   title: "",
   category: "",
-  level: "",
   subtitle: "",
   description: "",
   pricing: 0,
@@ -114,5 +106,4 @@ export const sortOptions = [
 
 export const filterOptions = {
   category: courseExamOptions,
-  level: courseLevelOptions,
 };

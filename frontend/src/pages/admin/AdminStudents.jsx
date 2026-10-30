@@ -18,6 +18,7 @@ import {
 import {
   deleteStudentAccountService,
   fetchStudentsService,
+  updateStudentApprovalService,
   updateStudentStatusService,
 } from "@/services";
 import { Trash2, UserRoundCheck, UserRoundX, Users } from "lucide-react";
@@ -78,6 +79,35 @@ export default function AdminStudents() {
     }
   }
 
+  async function handleApproveStudent(student) {
+    setUpdatingStudentId(student._id);
+    try {
+      const response = await updateStudentApprovalService(student._id, true);
+      if (!response?.success) {
+        toast.error(response?.message || "Unable to approve student.");
+        return;
+      }
+
+      toast.success(response.message || "Student approved.");
+      setStudents((current) =>
+        current.map((item) =>
+          item._id === student._id ? { ...item, ...response.data } : item
+        )
+      );
+      setSelectedStudent((current) =>
+        current?._id === student._id
+          ? { ...current, ...response.data }
+          : current
+      );
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Unable to approve student."
+      );
+    } finally {
+      setUpdatingStudentId(null);
+    }
+  }
+
   async function handleDeleteStudent(adminPassword) {
     if (!studentToDelete) return;
     setIsDeletingStudent(true);
@@ -101,7 +131,12 @@ export default function AdminStudents() {
     }
   }
 
-  const activeCount = students.filter((student) => student.active).length;
+  const activeCount = students.filter(
+    (student) => student.active && student.approved !== false
+  ).length;
+  const pendingCount = students.filter(
+    (student) => student.approved === false
+  ).length;
 
   return (
     <div className="space-y-8">
@@ -111,7 +146,7 @@ export default function AdminStudents() {
           Students
         </h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          View student records and manage their access to college resources.
+          View student records and manage their access to courses.
         </p>
       </div>
 
@@ -122,7 +157,7 @@ export default function AdminStudents() {
             <p className="mt-1 text-sm text-slate-500">
               {isLoadingStudents
                 ? "Loading student accounts..."
-                : `${students.length} student${students.length === 1 ? "" : "s"} total · ${activeCount} active`}
+                : `${students.length} total · ${activeCount} approved and active · ${pendingCount} pending`}
             </p>
           </div>
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
@@ -135,15 +170,16 @@ export default function AdminStudents() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Class / Batch</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Details</TableHead>
+                  <TableHead>Student ID</TableHead>
+                  <TableHead>Approval</TableHead>
+                  <TableHead>Access</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoadingStudents ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="py-8 text-center">
+                    <TableCell colSpan={5} className="py-8 text-center">
                       Loading students...
                     </TableCell>
                   </TableRow>
@@ -153,7 +189,20 @@ export default function AdminStudents() {
                       <TableCell className="font-medium">
                         {student.userName}
                       </TableCell>
-                      <TableCell>{student.studentClass}</TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {student.studentNumber}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                            student.approved === false
+                              ? "bg-amber-50 text-amber-800"
+                              : "bg-emerald-50 text-emerald-700"
+                          }`}
+                        >
+                          {student.approved === false ? "Pending" : "Approved"}
+                        </span>
+                      </TableCell>
                       <TableCell>
                         <span
                           className={`rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -166,6 +215,17 @@ export default function AdminStudents() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
+                        {student.approved === false && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="mr-2 rounded-lg"
+                            disabled={updatingStudentId === student._id}
+                            onClick={() => handleApproveStudent(student)}
+                          >
+                            Approve
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
@@ -180,7 +240,7 @@ export default function AdminStudents() {
                 ) : (
                   <TableRow>
                     <TableCell
-                      colSpan={4}
+                      colSpan={5}
                       className="py-10 text-center text-sm text-slate-500"
                     >
                       No student accounts have been created yet.
@@ -215,16 +275,24 @@ export default function AdminStudents() {
                 </dd>
               </div>
               <div>
-                <dt className="text-sm text-slate-500">Class / Batch</dt>
-                <dd className="font-medium">{selectedStudent.studentClass}</dd>
+                <dt className="text-sm text-slate-500">Course access</dt>
+                <dd className="font-medium">
+                  {selectedStudent.approved === false
+                    ? "Waiting for approval"
+                    : "Approved"}
+                </dd>
               </div>
               <div>
                 <dt className="text-sm text-slate-500">Parent / guardian</dt>
-                <dd className="font-medium">{selectedStudent.parentName}</dd>
+                <dd className="font-medium">
+                  {selectedStudent.parentName || "Not provided"}
+                </dd>
               </div>
               <div>
                 <dt className="text-sm text-slate-500">Guardian phone</dt>
-                <dd className="font-medium">{selectedStudent.parentPhone}</dd>
+                <dd className="font-medium">
+                  {selectedStudent.parentPhone || "Not provided"}
+                </dd>
               </div>
               <div>
                 <dt className="text-sm text-slate-500">Student phone</dt>
@@ -238,7 +306,9 @@ export default function AdminStudents() {
               </div>
               <div className="sm:col-span-2">
                 <dt className="text-sm text-slate-500">Address</dt>
-                <dd className="font-medium">{selectedStudent.address}</dd>
+                <dd className="font-medium">
+                  {selectedStudent.address || "Not provided"}
+                </dd>
               </div>
               <div>
                 <dt className="text-sm text-slate-500">Account status</dt>
@@ -247,6 +317,17 @@ export default function AdminStudents() {
                 </dd>
               </div>
             </dl>
+            {selectedStudent.approved === false && (
+              <Button
+                className="w-full sm:w-fit"
+                disabled={updatingStudentId === selectedStudent._id}
+                onClick={() => handleApproveStudent(selectedStudent)}
+              >
+                {updatingStudentId === selectedStudent._id
+                  ? "Approving..."
+                  : "Approve student"}
+              </Button>
+            )}
             <Button
               variant={selectedStudent.active ? "destructive" : "default"}
               className="w-full sm:w-fit"

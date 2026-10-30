@@ -2,13 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ReactPlayer from "react-player";
 import { Slider } from "../ui/slider";
 import { Button } from "../ui/button";
+import PropTypes from "prop-types";
 import {
   Maximize,
   Minimize,
   Pause,
   Play,
-  RotateCcw,
-  RotateCw,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -18,10 +17,11 @@ function VideoPlayer({
   height = "100%",
   url,
   onProgressUpdate,
-  progressData,
+  progressData = {},
+  maxPreviewSeconds,
+  onPreviewLimitReached,
 }) {
   const [playing, setPlaying] = useState(false);
-  const [volume, setVolume] = useState(0.5);
   const [muted, setMuted] = useState(false);
   const [played, setPlayed] = useState(0);
   const [seeking, setSeeking] = useState(false);
@@ -31,41 +31,69 @@ function VideoPlayer({
   const playerRef = useRef(null);
   const playerContainerRef = useRef(null);
   const controlsTimeoutRef = useRef(null);
+  const hasReportedCompletionRef = useRef(false);
+  const hasReachedPreviewLimitRef = useRef(false);
 
   function handlePlayAndPause() {
+    if (maxPreviewSeconds && hasReachedPreviewLimitRef.current) return;
     setPlaying(!playing);
   }
 
   function handleProgress(state) {
-    if (!seeking) {
-      setPlayed(state.played);
+    if (
+      maxPreviewSeconds &&
+      state.playedSeconds >= maxPreviewSeconds &&
+      !hasReachedPreviewLimitRef.current
+    ) {
+      hasReachedPreviewLimitRef.current = true;
+      playerRef.current?.seekTo(maxPreviewSeconds, "seconds");
+      setPlayed(
+        playerRef.current?.getDuration()
+          ? Math.min(maxPreviewSeconds / playerRef.current.getDuration(), 1)
+          : state.played
+      );
+      setPlaying(false);
+      onPreviewLimitReached?.();
+      return;
     }
-  }
 
-  function handleRewind() {
-    playerRef?.current?.seekTo(playerRef?.current?.getCurrentTime() - 5);
-  }
-
-  function handleForward() {
-    playerRef?.current?.seekTo(playerRef?.current?.getCurrentTime() + 5);
+    if (!seeking) {
+      setPlayed(
+        maxPreviewSeconds
+          ? Math.min(
+              state.played,
+              maxPreviewSeconds /
+                (playerRef.current?.getDuration() || maxPreviewSeconds)
+            )
+          : state.played
+      );
+    }
   }
 
   function handleToggleMute() {
     setMuted(!muted);
   }
 
-  function handleSeekChange(newValue) {
-    setPlayed(newValue[0]);
+  function handleSeekChange(value) {
+    const duration = playerRef.current?.getDuration() || 0;
+    const maxPlayed = maxPreviewSeconds && duration
+      ? Math.min(maxPreviewSeconds / duration, 1)
+      : 1;
+    setPlayed(Math.min(value / 100, maxPlayed));
     setSeeking(true);
   }
 
   function handleSeekMouseUp() {
     setSeeking(false);
-    playerRef.current?.seekTo(played);
-  }
-
-  function handleVolumeChange(newValue) {
-    setVolume(newValue[0]);
+    const duration = playerRef.current?.getDuration() || 0;
+    const seekPosition =
+      maxPreviewSeconds && duration
+        ? Math.min(played * duration, maxPreviewSeconds)
+        : played;
+    playerRef.current?.seekTo(
+      maxPreviewSeconds && duration ? seekPosition : played,
+      maxPreviewSeconds && duration ? "seconds" : "fraction"
+    );
   }
 
   function pad(string) {
@@ -116,13 +144,25 @@ function VideoPlayer({
   }, []);
 
   useEffect(() => {
-    if (played === 1) {
+    setPlayed(0);
+    setPlaying(false);
+    setSeeking(false);
+    hasReportedCompletionRef.current = false;
+    hasReachedPreviewLimitRef.current = false;
+  }, [url]);
+
+  useEffect(() => {
+    if (!onProgressUpdate) return;
+    if (played < 1) {
+      hasReportedCompletionRef.current = false;
+    } else if (!hasReportedCompletionRef.current) {
+      hasReportedCompletionRef.current = true;
       onProgressUpdate({
         ...progressData,
         progressValue: played,
       });
     }
-  }, [played]);
+  }, [played, onProgressUpdate, progressData]);
 
   return (
     <div
@@ -141,97 +181,112 @@ function VideoPlayer({
         height="100%"
         url={url}
         playing={playing}
-        volume={volume}
+        volume={0.5}
         muted={muted}
         onProgress={handleProgress}
       />
       {showControls && (
         <div
-          className={`absolute bottom-0 left-0 right-0 bg-gray-800 bg-opacity-75 p-4 transition-opacity duration-300 ${
+          className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent px-3 pb-3 pt-8 transition-opacity duration-300 ${
             showControls ? "opacity-100" : "opacity-0"
           }`}
         >
           <Slider
             value={[played * 100]}
-            max={100}
+            max={
+              maxPreviewSeconds && playerRef.current?.getDuration()
+                ? Math.min(
+                    (maxPreviewSeconds / playerRef.current.getDuration()) *
+                      100,
+                    100
+                  )
+                : 100
+            }
             step={0.1}
-            onValueChange={(value) => handleSeekChange([value[0] / 100])}
+            onValueChange={(value) => handleSeekChange(value[0])}
             onValueCommit={handleSeekMouseUp}
-            className="w-full mb-4"
+            className="mb-2 w-full"
           />
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={handlePlayAndPause}
-                className="text-white bg-transparent hover:text-white hover:bg-gray-700"
+                aria-label={playing ? "Pause video" : "Play video"}
+                className="h-8 w-8 text-white hover:bg-white/15 hover:text-white"
               >
                 {playing ? (
-                  <Pause className="h-6 w-6" />
+                  <Pause aria-hidden="true" className="h-4 w-4" />
                 ) : (
-                  <Play className="h-6 w-6" />
+                  <Play aria-hidden="true" className="h-4 w-4" />
                 )}
-              </Button>
-              <Button
-                onClick={handleRewind}
-                className="text-white bg-transparent hover:text-white hover:bg-gray-700"
-                variant="ghost"
-                size="icon"
-              >
-                <RotateCcw className="h-6 w-6" />
-              </Button>
-              <Button
-                onClick={handleForward}
-                className="text-white bg-transparent hover:text-white hover:bg-gray-700"
-                variant="ghost"
-                size="icon"
-              >
-                <RotateCw className="h-6 w-6" />
               </Button>
               <Button
                 onClick={handleToggleMute}
-                className="text-white bg-transparent hover:text-white hover:bg-gray-700"
                 variant="ghost"
                 size="icon"
+                aria-label={muted ? "Unmute video" : "Mute video"}
+                className="h-8 w-8 text-white hover:bg-white/15 hover:text-white"
               >
                 {muted ? (
-                  <VolumeX className="h-6 w-6" />
+                  <VolumeX aria-hidden="true" className="h-4 w-4" />
                 ) : (
-                  <Volume2 className="h-6 w-6" />
+                  <Volume2 aria-hidden="true" className="h-4 w-4" />
                 )}
               </Button>
-              <Slider
-                value={[volume * 100]}
-                max={100}
-                step={1}
-                onValueChange={(value) => handleVolumeChange([value[0] / 100])}
-                className="w-24 "
-              />
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="text-white">
-                {formatTime(played * (playerRef?.current?.getDuration() || 0))}/{" "}
-                {formatTime(playerRef?.current?.getDuration() || 0)}
-              </div>
+            <div className="text-xs tabular-nums text-white">
+              {formatTime(played * (playerRef?.current?.getDuration() || 0))} /{" "}
+              {formatTime(
+                maxPreviewSeconds
+                  ? Math.min(
+                      maxPreviewSeconds,
+                      playerRef?.current?.getDuration() || maxPreviewSeconds
+                    )
+                  : playerRef?.current?.getDuration() || 0
+              )}
+            </div>
+            <div>
               <Button
-                className="text-white bg-transparent hover:text-white hover:bg-gray-700"
                 variant="ghost"
                 size="icon"
                 onClick={handleFullScreen}
+                aria-label={isFullScreen ? "Exit fullscreen" : "Enter fullscreen"}
+                className="h-8 w-8 text-white hover:bg-white/15 hover:text-white"
               >
                 {isFullScreen ? (
-                  <Minimize className="h-6 w-6" />
+                  <Minimize aria-hidden="true" className="h-4 w-4" />
                 ) : (
-                  <Maximize className="h-6 w-6" />
+                  <Maximize aria-hidden="true" className="h-4 w-4" />
                 )}
               </Button>
             </div>
           </div>
         </div>
       )}
+      {maxPreviewSeconds && hasReachedPreviewLimitRef.current && (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/85 p-6 text-center text-white">
+          <div>
+            <p className="font-semibold">1-minute preview complete</p>
+            <p className="mt-2 text-sm text-slate-200">
+              Sign in or create an account to continue learning.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+VideoPlayer.propTypes = {
+  width: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  height: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  url: PropTypes.oneOfType([PropTypes.string, PropTypes.array]).isRequired,
+  onProgressUpdate: PropTypes.func,
+  progressData: PropTypes.object,
+  maxPreviewSeconds: PropTypes.number,
+  onPreviewLimitReached: PropTypes.func,
+};
 
 export default VideoPlayer;

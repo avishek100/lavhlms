@@ -35,7 +35,7 @@ export default function StudentNoticesPage() {
           Notices
         </h1>
         <p className="mt-2 text-sm text-slate-500">
-          Updates and announcements from your teachers.
+          Updates and announcements from the administrator.
         </p>
       </header>
       {isLoading ? (
@@ -55,11 +55,7 @@ export default function StudentNoticesPage() {
                 <div className="min-w-0 flex-1">
                   <CardTitle className="text-lg">{notice.title}</CardTitle>
                   <p className="mt-1 text-sm font-medium text-blue-700">
-                    {notice.audience === "college"
-                      ? "Whole college"
-                      : notice.audience === "batch"
-                        ? notice.studentClasses?.join(", ")
-                        : notice.courseTitle || "Whole college"}
+                    All students
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
                     Sent by {notice.senderName || "Teacher"}

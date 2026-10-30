@@ -9,40 +9,87 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
   courseCurriculumInitialFormData,
   courseLandingInitialFormData,
+  getCourseCategoryLabel,
 } from "@/config";
 import { InstructorContext } from "@/context/instructor-context";
-import { AuthContext } from "@/context/auth-context";
-import { Edit } from "lucide-react";
+import { deleteCourseService } from "@/services";
+import { Edit, Trash2 } from "lucide-react";
 import PropTypes from "prop-types";
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
 
-function InstructorCourses({ listOfCourses = [] }) {
+function AdminCourseList({
+  listOfCourses = [],
+  onCourseDeleted,
+}) {
   const navigate = useNavigate();
-  const { auth } = useContext(AuthContext);
-  const isAdmin = auth?.user?.role === "admin";
   const {
+    setInstructorCoursesList,
     setCurrentEditedCourseId,
     setCourseLandingFormData,
     setCourseCurriculumFormData,
   } = useContext(InstructorContext);
+  const [courseToDelete, setCourseToDelete] = useState(null);
+  const [deletingCourseId, setDeletingCourseId] = useState(null);
+  const [adminPassword, setAdminPassword] = useState("");
+
+  useEffect(() => {
+    setAdminPassword("");
+  }, [courseToDelete]);
+
+  async function handleDeleteCourse(event) {
+    event.preventDefault();
+    if (!courseToDelete) return;
+    setDeletingCourseId(courseToDelete._id);
+    try {
+      const response = await deleteCourseService(
+        courseToDelete._id,
+        adminPassword
+      );
+      if (!response?.success) {
+        toast.error(response?.message || "Unable to delete the course.");
+        return;
+      }
+      setInstructorCoursesList((courses) =>
+        courses.filter((course) => course._id !== courseToDelete._id)
+      );
+      onCourseDeleted?.(courseToDelete._id);
+      toast.success(response.message || "Course deleted.");
+      setCourseToDelete(null);
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Unable to delete the course."
+      );
+    } finally {
+      setDeletingCourseId(null);
+    }
+  }
 
   return (
     <Card className="rounded-xl border-slate-200 shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <CardTitle className="text-lg font-semibold text-slate-900">
-          {isAdmin ? "All courses" : "Your courses"}
+          All courses
         </CardTitle>
         <Button
           onClick={() => {
             setCurrentEditedCourseId(null);
             setCourseLandingFormData(courseLandingInitialFormData);
             setCourseCurriculumFormData(courseCurriculumInitialFormData);
-            navigate(
-              isAdmin ? "/admin/courses/new" : "/instructor/create-new-course"
-            );
+            navigate("/admin/courses/new");
           }}
           className="h-10 rounded-lg px-4"
         >
@@ -55,8 +102,7 @@ function InstructorCourses({ listOfCourses = [] }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Course</TableHead>
-                <TableHead>Class / batch</TableHead>
-                {isAdmin && <TableHead>Teacher</TableHead>}
+                <TableHead>Exam program</TableHead>
                 <TableHead>Lessons</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -69,13 +115,8 @@ function InstructorCourses({ listOfCourses = [] }) {
                         {course?.title}
                       </TableCell>
                       <TableCell>
-                        {course?.studentClass || "Unassigned"}
+                        {getCourseCategoryLabel(course?.category) || "Unassigned"}
                       </TableCell>
-                      {isAdmin && (
-                        <TableCell>
-                          {course?.instructorName || "Unknown teacher"}
-                        </TableCell>
-                      )}
                       <TableCell>
                         {course?.curriculum?.length || 0}
                       </TableCell>
@@ -83,16 +124,21 @@ function InstructorCourses({ listOfCourses = [] }) {
                         <Button
                           aria-label={`Edit ${course?.title || "course"}`}
                           onClick={() => {
-                            navigate(
-                              isAdmin
-                                ? `/admin/courses/${course?._id}/edit`
-                                : `/instructor/edit-course/${course?._id}`
-                            );
+                            navigate(`/admin/courses/${course?._id}/edit`);
                           }}
                           variant="ghost"
                           size="sm"
                         >
                           <Edit aria-hidden="true" className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          aria-label={`Delete ${course?.title || "course"}`}
+                          onClick={() => setCourseToDelete(course)}
+                          variant="ghost"
+                          size="sm"
+                          className="text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                        >
+                          <Trash2 aria-hidden="true" className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -100,7 +146,7 @@ function InstructorCourses({ listOfCourses = [] }) {
                 : (
                     <TableRow>
                       <TableCell
-                        colSpan={isAdmin ? 5 : 4}
+                        colSpan={4}
                         className="py-12 text-center text-sm text-slate-500"
                       >
                         You haven’t created any courses yet.
@@ -111,12 +157,64 @@ function InstructorCourses({ listOfCourses = [] }) {
           </Table>
         </div>
       </CardContent>
+      <Dialog
+        open={Boolean(courseToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !deletingCourseId) setCourseToDelete(null);
+        }}
+      >
+        {courseToDelete && (
+          <DialogContent>
+            <form onSubmit={handleDeleteCourse} className="space-y-5">
+              <DialogHeader>
+                <DialogTitle>Delete this course?</DialogTitle>
+                <DialogDescription>
+                  This permanently deletes “{courseToDelete.title}” and removes
+                  student enrollments and progress. Payment history and existing
+                  notices are retained. This cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2">
+                <Label htmlFor="delete-course-admin-password">
+                  Administrator password
+                </Label>
+                <Input
+                  id="delete-course-admin-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={adminPassword}
+                  onChange={(event) => setAdminPassword(event.target.value)}
+                  required
+                />
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={Boolean(deletingCourseId)}
+                  onClick={() => setCourseToDelete(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="destructive"
+                  disabled={Boolean(deletingCourseId)}
+                >
+                  {deletingCourseId ? "Deleting..." : "Delete course"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        )}
+      </Dialog>
     </Card>
   );
 }
 
-InstructorCourses.propTypes = {
+AdminCourseList.propTypes = {
   listOfCourses: PropTypes.arrayOf(PropTypes.object),
+  onCourseDeleted: PropTypes.func,
 };
 
-export default InstructorCourses;
+export default AdminCourseList;

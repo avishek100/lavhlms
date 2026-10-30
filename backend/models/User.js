@@ -58,13 +58,42 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  approved: {
+    type: Boolean,
+    default: true,
+  },
+  passwordResetOtpHash: {
+    type: String,
+    select: false,
+  },
+  passwordResetOtpExpiresAt: {
+    type: Date,
+    select: false,
+  },
+  passwordResetOtpAttempts: {
+    type: Number,
+    default: 0,
+    select: false,
+  },
+  passwordResetOtpSentAt: {
+    type: Date,
+    select: false,
+  },
+  passwordResetTokenHash: {
+    type: String,
+    select: false,
+  },
+  passwordResetTokenExpiresAt: {
+    type: Date,
+    select: false,
+  },
   mustChangePassword: {
     type: Boolean,
     default: false,
   },
   role: {
     type: String,
-    enum: ["student", "instructor"],
+    enum: ["student", "admin", "instructor"],
     default: "student",
   },
   collegeIssued: {

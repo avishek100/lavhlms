@@ -10,7 +10,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { filterOptions, sortOptions } from "@/config";
+import {
+  filterOptions,
+  getCourseCategoryLabel,
+  sortOptions,
+} from "@/config";
 import { StudentContext } from "@/context/student-context";
 import { fetchStudentViewCourseListService } from "@/services";
 import { ArrowUpDownIcon } from "lucide-react";
@@ -52,19 +56,35 @@ function StudentViewCoursesPage() {
     setLoadingState,
   } = useContext(StudentContext);
   const navigate = useNavigate();
+  const courseCategoryOptions = useMemo(() => {
+    const categories = new Set([
+      ...filterOptions.category.map((option) => option.id),
+      ...studentViewCoursesList
+        .map((course) => course.category)
+        .filter(Boolean),
+    ]);
+
+    return Array.from(categories).map((id) => ({
+      id,
+      label: getCourseCategoryLabel(id),
+    }));
+  }, [studentViewCoursesList]);
   const visibleCourses = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase();
-    if (!query) return studentViewCoursesList;
+    const selectedCategories = filters.category || [];
 
     return studentViewCoursesList.filter((course) =>
-      [
-        course?.title,
-        course?.subtitle,
-        course?.description,
-        course?.instructorName,
-      ].some((value) => value?.toLocaleLowerCase().includes(query))
+      (!selectedCategories.length ||
+        selectedCategories.includes(course.category)) &&
+      (!query ||
+        [
+          course?.title,
+          course?.subtitle,
+          course?.description,
+          course?.instructorName,
+        ].some((value) => value?.toLocaleLowerCase().includes(query)))
     );
-  }, [searchQuery, studentViewCoursesList]);
+  }, [filters.category, searchQuery, studentViewCoursesList]);
 
   function handleFilterOnChange(getSectionId, getCurrentOption) {
     const selectedOptions = filters[getSectionId] || [];
@@ -82,8 +102,10 @@ function StudentViewCoursesPage() {
 
   const fetchAllStudentViewCourses = useCallback(async (filters, sort) => {
     const requestId = ++requestIdRef.current;
+    const queryFilters = { ...filters };
+    delete queryFilters.category;
     const query = new URLSearchParams({
-      ...filters,
+      ...queryFilters,
       sortBy: sort,
     });
     if (searchQuery.trim()) query.set("search", searchQuery.trim());
@@ -129,15 +151,7 @@ function StudentViewCoursesPage() {
     setSort("title-atoz");
     const storedFilters = JSON.parse(sessionStorage.getItem("filters")) || {};
     delete storedFilters.primaryLanguage;
-    const examProgramIds = filterOptions.category.map((option) => option.id);
-    if (Array.isArray(storedFilters.category)) {
-      storedFilters.category = storedFilters.category.filter((id) =>
-        examProgramIds.includes(id)
-      );
-      if (storedFilters.category.length === 0) delete storedFilters.category;
-    } else {
-      delete storedFilters.category;
-    }
+    delete storedFilters.level;
     setFilters(storedFilters);
     sessionStorage.setItem("filters", JSON.stringify(storedFilters));
   }, []);
@@ -180,7 +194,10 @@ function StudentViewCoursesPage() {
                     : sectionItem.replace(/([A-Z])/g, " $1")}
                 </h3>
                 <div className="mt-2 grid gap-2.5">
-                  {filterOptions[sectionItem].map((option) => (
+                  {(sectionItem === "category"
+                    ? courseCategoryOptions
+                    : filterOptions[sectionItem]
+                  ).map((option) => (
                     <Label key={option.id} className="flex cursor-pointer items-center gap-3 text-sm font-normal text-slate-700">
                       <Checkbox
                         checked={
@@ -276,7 +293,7 @@ function StudentViewCoursesPage() {
                           courseItem?.curriculum?.length <= 1
                             ? "Lecture"
                             : "Lectures"
-                        } - ${courseItem?.level.toUpperCase()} Level`}
+                        }`}
                       </p>
                       <p className="text-sm font-medium text-emerald-700">
                         English test preparation

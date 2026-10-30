@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   LogOut,
   Megaphone,
-  UserRoundCog,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -17,14 +16,12 @@ const navigationItems = [
   { label: "Dashboard", to: "/admin", icon: LayoutDashboard, end: true },
   { label: "Students", to: "/admin/students", icon: Users, end: true },
   { label: "Add Student", to: "/admin/students/new", icon: UserPlus },
-  { label: "Teachers", to: "/admin/teachers", icon: UserRoundCog, end: true },
-  { label: "Add Teacher", to: "/admin/teachers/new", icon: UserPlus },
   { label: "Courses", to: "/admin/courses", icon: BookOpen },
   { label: "Notices", to: "/admin/notices", icon: Megaphone },
 ];
 
 export default function AdminLayout() {
-  const { auth, resetCredentials } = useContext(AuthContext);
+  const { resetCredentials } = useContext(AuthContext);
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -72,7 +69,7 @@ export default function AdminLayout() {
           </nav>
           <div className="mt-5 hidden border-t border-slate-100 pt-4 md:block">
             <p className="truncate px-3 text-sm text-slate-500">
-              {auth?.user?.userName}
+              Lavh Shrestha
             </p>
             <Button
               variant="ghost"
@@ -90,7 +87,7 @@ export default function AdminLayout() {
         <div className="mx-auto max-w-7xl">
           <div className="mb-6 flex items-center justify-between border-b border-slate-200 pb-4 md:hidden">
             <span className="truncate text-sm text-slate-500">
-              {auth?.user?.userName}
+              Lavh Shrestha
             </span>
             <Button
               variant="outline"

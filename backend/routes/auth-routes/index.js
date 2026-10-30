@@ -1,16 +1,17 @@
 const express = require("express");
 const {
   createStudentAccount,
-  createTeacherAccount,
-  getTeachers,
-  updateTeacherStatus,
-  deleteTeacherAccount,
+  registerStudentAccount,
   getStudents,
   updateStudentStatus,
+  updateStudentApproval,
   deleteStudentAccount,
   getActiveStudentCount,
   changePassword,
   loginUser,
+  requestPasswordResetOtp,
+  verifyPasswordResetOtp,
+  resetPasswordWithToken,
   getProfile,
   updateProfileImage,
   deleteProfileImage,
@@ -53,47 +54,24 @@ function requireAdministrator(req, res, next) {
   next();
 }
 
-router.post("/register", (req, res) => {
-  res.status(403).json({
-    success: false,
-    message: "Student accounts are issued by ADS College staff.",
-  });
-});
+router.post("/register", registerStudentAccount);
 router.get(
   "/students",
   authenticateMiddleware,
   requireAdministrator,
   getStudents
 );
-router.get(
-  "/teachers",
-  authenticateMiddleware,
-  requireAdministrator,
-  getTeachers
-);
-router.post(
-  "/teachers",
-  authenticateMiddleware,
-  requireAdministrator,
-  createTeacherAccount
-);
-router.put(
-  "/teachers/:teacherId/status",
-  authenticateMiddleware,
-  requireAdministrator,
-  updateTeacherStatus
-);
-router.delete(
-  "/teachers/:accountId",
-  authenticateMiddleware,
-  requireAdministrator,
-  deleteTeacherAccount
-);
 router.put(
   "/students/:studentId/status",
   authenticateMiddleware,
   requireAdministrator,
   updateStudentStatus
+);
+router.put(
+  "/students/:studentId/approval",
+  authenticateMiddleware,
+  requireAdministrator,
+  updateStudentApproval
 );
 router.delete(
   "/students/:accountId",
@@ -122,6 +100,9 @@ router.post(
 );
 router.delete("/profile/image", authenticateMiddleware, deleteProfileImage);
 router.post("/login", loginUser);
+router.post("/forgot-password", requestPasswordResetOtp);
+router.post("/verify-reset-otp", verifyPasswordResetOtp);
+router.post("/reset-password", resetPasswordWithToken);
 router.post("/change-password", authenticateMiddleware, changePassword);
 router.get("/check-auth", authenticateMiddleware, (req, res) => {
   const user = req.user;

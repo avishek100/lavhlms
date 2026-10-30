@@ -8,7 +8,7 @@ import {
   GraduationCap,
   LoaderCircle,
   LockKeyhole,
-  Hash,
+  Mail,
   ShieldCheck,
 } from "lucide-react";
 import { useContext, useState } from "react";
@@ -35,11 +35,9 @@ function AuthPage() {
             ? "/change-password"
             : user.role === "admin"
               ? "/admin"
-              : user.role === "instructor"
-                ? "/instructor"
-                : requestedLocation
-                  ? `${requestedLocation.pathname}${requestedLocation.search || ""}${requestedLocation.hash || ""}`
-                  : "/",
+              : requestedLocation
+                ? `${requestedLocation.pathname}${requestedLocation.search || ""}${requestedLocation.hash || ""}`
+                : "/",
           { replace: true }
         );
       }
@@ -161,21 +159,21 @@ function AuthPage() {
                 Welcome back
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Sign in with your student number or staff email.
+                Sign in with your email address.
               </p>
             </div>
 
             <form onSubmit={handleLoginSubmit} className="space-y-5">
               {renderField({
-                id: "signin-login-id",
+                id: "signin-email",
                 name: "loginId",
-                label: "Student number or staff email",
-                type: "text",
-                autoComplete: "username",
-                placeholder: "e.g. ADS123456",
+                label: "Email",
+                type: "email",
+                autoComplete: "email",
+                placeholder: "Enter your email",
                 value: signInFormData.loginId,
                 onChange: updateSignInField,
-                icon: Hash,
+                icon: Mail,
               })}
               {renderField({
                 id: "signin-password",
@@ -191,8 +189,22 @@ function AuthPage() {
               {renderSubmitButton("Sign in", "Signing in...")}
             </form>
 
+            <div className="mt-4 text-right text-sm">
+              <Link
+                to="/forgot-password"
+                className="font-medium text-blue-700 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <p className="mt-6 text-center text-sm text-slate-500">
-              Need help accessing your account? Contact your instructor.
+              New to the learning platform?{" "}
+              <Link
+                to="/register"
+                className="font-medium text-blue-700 hover:underline"
+              >
+                Create a student account
+              </Link>
             </p>
           </div>
         </div>

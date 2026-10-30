@@ -61,6 +61,10 @@ async function createConfiguredAdministrator() {
 
   if (existingAdmin?.collegeIssued) {
     let needsUpdate = false;
+    if (existingAdmin.userName !== "Lavh Shrestha") {
+      existingAdmin.userName = "Lavh Shrestha";
+      needsUpdate = true;
+    }
     if (!existingAdmin.active) {
       existingAdmin.active = true;
       needsUpdate = true;
@@ -69,8 +73,8 @@ async function createConfiguredAdministrator() {
       existingAdmin.mustChangePassword = false;
       needsUpdate = true;
     }
-    if (existingAdmin.role !== "instructor") {
-      existingAdmin.role = "instructor";
+    if (existingAdmin.role !== "admin") {
+      existingAdmin.role = "admin";
       needsUpdate = true;
     }
     if (needsUpdate) await existingAdmin.save();
@@ -85,11 +89,12 @@ async function createConfiguredAdministrator() {
 
   const passwordHash = await bcrypt.hash(adminPassword, 10);
   if (existingAdmin) {
-    existingAdmin.userName ||= "ADS College Administrator";
+    existingAdmin.userName = "Lavh Shrestha";
     existingAdmin.password = passwordHash;
-    existingAdmin.role = "instructor";
+    existingAdmin.role = "admin";
     existingAdmin.collegeIssued = true;
     existingAdmin.active = true;
+    existingAdmin.approved = true;
     existingAdmin.mustChangePassword = false;
     await existingAdmin.save();
     console.log("Upgraded configured account to ADS College administrator.");
@@ -97,11 +102,12 @@ async function createConfiguredAdministrator() {
   }
 
   await User.create({
-    userName: "ADS College Administrator",
+    userName: "Lavh Shrestha",
     userEmail: adminEmail,
     password: passwordHash,
-    role: "instructor",
+    role: "admin",
     collegeIssued: true,
+    approved: true,
   });
   console.log("Configured ADS College administrator account.");
 }
@@ -118,8 +124,8 @@ mongoose
 //routes configuration
 app.use("/auth", authRoutes);
 app.use("/media", mediaRoutes);
-app.use("/instructor/course", instructorCourseRoutes);
-app.use("/instructor", instructorActivityRoutes);
+app.use("/admin/courses", instructorCourseRoutes);
+app.use("/admin", instructorActivityRoutes);
 app.use("/student/notices", studentNoticeRoutes);
 app.use("/student/course", studentViewCourseRoutes);
 app.use("/student/courses-bought", studentCoursesRoutes);

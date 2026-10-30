@@ -1,7 +1,12 @@
-import axiosInstance from "@/api/axiosInstance";
+import axiosInstance, { publicAxiosInstance } from "@/api/axiosInstance";
 
 export async function createStudentAccountService(formData) {
   const { data } = await axiosInstance.post("/auth/students", formData);
+  return data;
+}
+
+export async function registerStudentAccountService(formData) {
+  const { data } = await axiosInstance.post("/auth/register", formData);
   return data;
 }
 
@@ -18,33 +23,16 @@ export async function updateStudentStatusService(studentId, active) {
   return data;
 }
 
-export async function deleteStudentAccountService(studentId, adminPassword) {
-  const { data } = await axiosInstance.delete(`/auth/students/${studentId}`, {
-    data: { adminPassword },
-  });
-  return data;
-}
-
-export async function createTeacherAccountService(formData) {
-  const { data } = await axiosInstance.post("/auth/teachers", formData);
-  return data;
-}
-
-export async function fetchTeachersService() {
-  const { data } = await axiosInstance.get("/auth/teachers");
-  return data;
-}
-
-export async function updateTeacherStatusService(teacherId, active) {
+export async function updateStudentApprovalService(studentId, approved) {
   const { data } = await axiosInstance.put(
-    `/auth/teachers/${teacherId}/status`,
-    { active }
+    `/auth/students/${studentId}/approval`,
+    { approved }
   );
   return data;
 }
 
-export async function deleteTeacherAccountService(teacherId, adminPassword) {
-  const { data } = await axiosInstance.delete(`/auth/teachers/${teacherId}`, {
+export async function deleteStudentAccountService(studentId, adminPassword) {
+  const { data } = await axiosInstance.delete(`/auth/students/${studentId}`, {
     data: { adminPassword },
   });
   return data;
@@ -86,6 +74,21 @@ export async function loginService(formData) {
   return data;
 }
 
+export async function requestPasswordResetOtpService(email) {
+  const { data } = await axiosInstance.post("/auth/forgot-password", { email });
+  return data;
+}
+
+export async function verifyPasswordResetOtpService(formData) {
+  const { data } = await axiosInstance.post("/auth/verify-reset-otp", formData);
+  return data;
+}
+
+export async function resetPasswordWithTokenService(formData) {
+  const { data } = await axiosInstance.post("/auth/reset-password", formData);
+  return data;
+}
+
 export async function checkAuthService() {
   const { data } = await axiosInstance.get("/auth/check-auth");
 
@@ -114,40 +117,18 @@ export async function mediaDeleteService(id) {
 }
 
 export async function fetchInstructorCourseListService() {
-  const { data } = await axiosInstance.get(`/instructor/course/get`);
+  const { data } = await axiosInstance.get(`/admin/courses/get`);
 
   return data;
 }
 
-export async function fetchAttendanceClassesService() {
-  const { data } = await axiosInstance.get("/instructor/attendance/classes");
+export async function fetchAdminNoticesService() {
+  const { data } = await axiosInstance.get("/admin/notices");
   return data;
 }
 
-export async function fetchAttendanceRosterService(className, date) {
-  const { data } = await axiosInstance.get("/instructor/attendance", {
-    params: { className, date },
-  });
-  return data;
-}
-
-export async function saveAttendanceService(payload) {
-  const { data } = await axiosInstance.put("/instructor/attendance", payload);
-  return data;
-}
-
-export async function fetchTeacherNoticesService() {
-  const { data } = await axiosInstance.get("/instructor/notices");
-  return data;
-}
-
-export async function fetchNoticeClassesService() {
-  const { data } = await axiosInstance.get("/instructor/notices/classes");
-  return data;
-}
-
-export async function createTeacherNoticeService(payload) {
-  const { data } = await axiosInstance.post("/instructor/notices", payload);
+export async function createAdminNoticeService(payload) {
+  const { data } = await axiosInstance.post("/admin/notices", payload);
   return data;
 }
 
@@ -157,14 +138,14 @@ export async function fetchStudentNoticesService() {
 }
 
 export async function addNewCourseService(formData) {
-  const { data } = await axiosInstance.post(`/instructor/course/add`, formData);
+  const { data } = await axiosInstance.post(`/admin/courses/add`, formData);
 
   return data;
 }
 
 export async function fetchInstructorCourseDetailsService(id) {
   const { data } = await axiosInstance.get(
-    `/instructor/course/get/details/${id}`
+    `/admin/courses/get/details/${id}`
   );
 
   return data;
@@ -172,9 +153,17 @@ export async function fetchInstructorCourseDetailsService(id) {
 
 export async function updateCourseByIdService(id, formData) {
   const { data } = await axiosInstance.put(
-    `/instructor/course/update/${id}`,
+    `/admin/courses/update/${id}`,
     formData
   );
+
+  return data;
+}
+
+export async function deleteCourseService(id, adminPassword) {
+  const { data } = await axiosInstance.delete(`/admin/courses/delete/${id}`, {
+    data: { adminPassword },
+  });
 
   return data;
 }
@@ -195,13 +184,16 @@ export async function mediaBulkUploadService(formData, onProgressCallback) {
 }
 
 export async function fetchStudentViewCourseListService(query) {
-  const { data } = await axiosInstance.get(`/student/course/get?${query}`);
+  const queryString = query?.toString();
+  const { data } = await publicAxiosInstance.get(
+    `/student/course/get${queryString ? `?${queryString}` : ""}`
+  );
 
   return data;
 }
 
 export async function fetchStudentViewCourseDetailsService(courseId) {
-  const { data } = await axiosInstance.get(
+  const { data } = await publicAxiosInstance.get(
     `/student/course/get/details/${courseId}`
   );
 

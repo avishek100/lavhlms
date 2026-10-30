@@ -6,13 +6,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   courseCurriculumInitialFormData,
+  courseExamOptions,
   courseLandingInitialFormData,
 } from "@/config";
-import { AuthContext } from "@/context/auth-context";
 import { InstructorContext } from "@/context/instructor-context";
 import {
   addNewCourseService,
-  fetchAttendanceClassesService,
+  fetchInstructorCourseListService,
   fetchInstructorCourseDetailsService,
   updateCourseByIdService,
 } from "@/services";
@@ -20,9 +20,8 @@ import { useCallback, useContext, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, CheckCircle2, Film, Image as ImageIcon, LayoutList, Save } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { Label } from "@/components/ui/label";
 
-function AddNewCoursePage() {
+function AdminCourseEditor() {
   const {
     courseLandingFormData,
     courseCurriculumFormData,
@@ -33,11 +32,8 @@ function AddNewCoursePage() {
 
   const [activeTab, setActiveTab] = useState("course-landing-page");
   const [isSaving, setIsSaving] = useState(false);
-  const [courseClasses, setCourseClasses] = useState([]);
-  const [courseClass, setCourseClass] = useState("");
-  const { auth } = useContext(AuthContext);
-  const isAdmin = auth?.user?.role === "admin";
-  const dashboardPath = isAdmin ? "/admin/courses" : "/instructor";
+  const [courseCategories, setCourseCategories] = useState([]);
+  const dashboardPath = "/admin/courses";
   const navigate = useNavigate();
   const params = useParams();
 
@@ -64,13 +60,6 @@ function AddNewCoursePage() {
   const isSettingsFilled = Boolean(courseLandingFormData.image);
 
   function getValidationError() {
-    if (isEmpty(courseClass)) {
-      return {
-        message: "Please select the class or batch for this course.",
-        tab: "course-landing-page",
-      };
-    }
-
     if (isEmpty(courseLandingFormData.title)) {
       return {
         message: "Please enter a course title in Course details.",
@@ -163,13 +152,9 @@ function AddNewCoursePage() {
     }
 
     const courseFinalFormData = {
-      instructorId: auth?.user?._id,
-      instructorName: auth?.user?.userName,
-      studentClass: courseClass,
       date: new Date(),
       ...courseLandingFormData,
       subtitle: courseLandingFormData.subtitle || courseLandingFormData.title,
-      level: courseLandingFormData.level || "beginner",
       objectives:
         courseLandingFormData.objectives || courseLandingFormData.description,
       welcomeMessage:
@@ -218,7 +203,6 @@ function AddNewCoursePage() {
       }, {});
 
       setCourseLandingFormData(setCourseFormData);
-      setCourseClass(response.data.studentClass || "");
       setCourseCurriculumFormData(
         response?.data?.curriculum?.length
           ? response.data.curriculum
@@ -233,23 +217,30 @@ function AddNewCoursePage() {
 
   useEffect(() => {
     let isCurrent = true;
-    fetchAttendanceClassesService()
+    fetchInstructorCourseListService()
       .then((response) => {
         if (!isCurrent) return;
         if (!response?.success) {
-          toast.error(response?.message || "Unable to load class/batch list.");
+          toast.error(response?.message || "Unable to load exam categories.");
           return;
         }
-        const classes = response.data || [];
-        setCourseClasses(classes);
-        setCourseClass((currentClass) =>
-          currentClass || classes[0] || ""
-        );
+        const categories = [
+          ...new Set(
+            (response.data || [])
+              .map((course) => course.category)
+              .filter(
+                (category) =>
+                  category &&
+                  !courseExamOptions.some((option) => option.id === category)
+              )
+          ),
+        ];
+        setCourseCategories(categories);
       })
       .catch((error) => {
         if (isCurrent) {
           toast.error(
-            error?.response?.data?.message || "Unable to load class/batch list."
+            error?.response?.data?.message || "Unable to load exam categories."
           );
         }
       });
@@ -269,7 +260,6 @@ function AddNewCoursePage() {
     setCurrentEditedCourseId(null);
     setCourseLandingFormData(courseLandingInitialFormData);
     setCourseCurriculumFormData(courseCurriculumInitialFormData);
-    setCourseClass("");
   }, [
     fetchCurrentCourseDetails,
     params.courseId,
@@ -316,35 +306,6 @@ function AddNewCoursePage() {
         {/* Tabbed Content Card */}
         <Card className="rounded-xl border-slate-200 shadow-sm overflow-hidden bg-white">
           <CardContent className="p-4 sm:p-6">
-            <div className="mb-6 max-w-xl space-y-2">
-              <Label htmlFor="course-class">Class / batch</Label>
-              <select
-                id="course-class"
-                className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm"
-                value={courseClass}
-                onChange={(event) => setCourseClass(event.target.value)}
-                disabled={courseClasses.length === 0}
-                required
-              >
-                <option value="">
-                  {courseClasses.length
-                    ? "Select a class or batch"
-                    : "Add student accounts with a class/batch first"}
-                </option>
-                {courseClasses.map((className) => (
-                  <option key={className} value={className}>
-                    {className}
-                  </option>
-                ))}
-                {courseClass && !courseClasses.includes(courseClass) && (
-                  <option value={courseClass}>{courseClass} (current)</option>
-                )}
-              </select>
-              <p className="text-xs text-slate-500">
-                Students in this class/batch will see this course. Admins can
-                review courses across all classes and teachers.
-              </p>
-            </div>
             <Tabs
               value={activeTab}
               onValueChange={setActiveTab}
@@ -387,7 +348,7 @@ function AddNewCoursePage() {
 
               {/* Tab 1: Course Details */}
               <TabsContent value="course-landing-page" className="focus-visible:outline-none">
-                <CourseLanding />
+                <CourseLanding categories={courseCategories} />
                 <div className="mt-6 flex justify-end pt-4 border-t border-slate-100">
                   <Button
                     type="button"
@@ -452,4 +413,4 @@ function AddNewCoursePage() {
   );
 }
 
-export default AddNewCoursePage;
+export default AdminCourseEditor;

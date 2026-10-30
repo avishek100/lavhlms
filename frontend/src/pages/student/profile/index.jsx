@@ -156,7 +156,7 @@ export default function StudentProfilePage() {
               My profile
             </h1>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              View your college details, manage your profile picture, and update your password.
+              View your account details, manage your profile picture, and update your password.
             </p>
           </div>
           <Button
@@ -241,12 +241,6 @@ export default function StudentProfilePage() {
               <dt className="text-sm text-slate-500">Student ID</dt>
               <dd className="mt-1 font-mono font-medium text-slate-900">
                 {profile.studentNumber || "Not assigned"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm text-slate-500">Class / Batch</dt>
-              <dd className="mt-1 font-medium text-slate-900">
-                {profile.studentClass || "Not provided"}
               </dd>
             </div>
             <div>

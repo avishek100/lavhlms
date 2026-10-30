@@ -26,7 +26,7 @@ import {
   PanelRightOpen,
   Play,
 } from "lucide-react";
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 
@@ -40,9 +40,10 @@ function StudentViewCourseProgressPage() {
   const [showCourseCompleteDialog, setShowCourseCompleteDialog] =
     useState(false);
   const [isSideBarOpen, setIsSideBarOpen] = useState(true);
+  const [isMarkingLessonComplete, setIsMarkingLessonComplete] = useState(false);
   const { id } = useParams();
 
-  async function fetchCurrentCourseProgress() {
+  const fetchCurrentCourseProgress = useCallback(async () => {
     const response = await getCurrentCourseProgressService(auth?.user?._id, id);
     if (response?.success) {
       if (!response?.data?.hasAccess) {
@@ -78,9 +79,16 @@ function StudentViewCourseProgressPage() {
         }
       }
     }
-  }
+  }, [
+    auth?.user?._id,
+    id,
+    setCurrentLecture,
+    setLockCourse,
+    setShowCourseCompleteDialog,
+    setStudentCurrentCourseProgress,
+  ]);
 
-  async function updateCourseProgress() {
+  const updateCourseProgress = useCallback(async () => {
     if (currentLecture) {
       try {
         const response = await markLectureAsViewedService(
@@ -100,7 +108,12 @@ function StudentViewCourseProgressPage() {
         );
       }
     }
-  }
+  }, [
+    auth?.user?._id,
+    currentLecture,
+    fetchCurrentCourseProgress,
+    studentCurrentCourseProgress?.courseDetails?._id,
+  ]);
 
   async function handleRewatchCourse() {
     const response = await resetCourseProgressService(
@@ -117,6 +130,7 @@ function StudentViewCourseProgressPage() {
 
   async function handleMarkLessonComplete() {
     if (!currentLecture?._id) return;
+    setIsMarkingLessonComplete(true);
 
     try {
       const response = await markLectureAsViewedService(
@@ -134,16 +148,18 @@ function StudentViewCourseProgressPage() {
       toast.error(
         error?.response?.data?.message || "Unable to update lesson progress."
       );
+    } finally {
+      setIsMarkingLessonComplete(false);
     }
   }
 
   useEffect(() => {
     fetchCurrentCourseProgress();
-  }, [id]);
+  }, [fetchCurrentCourseProgress]);
 
   useEffect(() => {
     if (currentLecture?.progressValue === 1) updateCourseProgress();
-  }, [currentLecture]);
+  }, [currentLecture, updateCourseProgress]);
 
   return (
     <main className="flex min-h-screen flex-col bg-slate-950 text-white">
@@ -201,12 +217,38 @@ function StudentViewCourseProgressPage() {
             )}
           </div>
           <div className="px-5 py-6 sm:px-8">
-            <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
-              Current lesson
-            </p>
-            <h2 className="mt-2 text-xl font-semibold text-white sm:text-2xl">
-              {currentLecture?.title || "Choose a lesson to begin"}
-            </h2>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
+                  Current lesson
+                </p>
+                <h2 className="mt-2 text-xl font-semibold text-white sm:text-2xl">
+                  {currentLecture?.title || "Choose a lesson to begin"}
+                </h2>
+              </div>
+              <Button
+                className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                onClick={handleMarkLessonComplete}
+                disabled={
+                  isMarkingLessonComplete ||
+                  !currentLecture?._id ||
+                  studentCurrentCourseProgress?.progress?.some(
+                    (item) =>
+                      item.lectureId === currentLecture._id && item.viewed
+                  )
+                }
+              >
+                <Check aria-hidden="true" className="h-4 w-4" />
+                {isMarkingLessonComplete
+                  ? "Saving..."
+                  : studentCurrentCourseProgress?.progress?.some(
+                        (item) =>
+                          item.lectureId === currentLecture?._id && item.viewed
+                      )
+                    ? "Lesson completed"
+                    : "Mark lesson complete"}
+              </Button>
+            </div>
             {currentLecture?.lessonContent && (
               <article className="mt-5 rounded-xl bg-slate-900 p-5 text-sm leading-7 text-slate-200 sm:p-7">
                 <div className="whitespace-pre-wrap">
@@ -226,19 +268,6 @@ function StudentViewCourseProgressPage() {
                 <ExternalLink aria-hidden="true" className="h-4 w-4" />
               </a>
             )}
-            <Button
-              variant="outline"
-              className="mt-4 border-slate-600 text-slate-100 hover:bg-slate-800 hover:text-white"
-              onClick={handleMarkLessonComplete}
-              disabled={
-                !currentLecture?._id ||
-                studentCurrentCourseProgress?.progress?.some(
-                  (item) => item.lectureId === currentLecture._id && item.viewed
-                )
-              }
-            >
-              Mark lesson complete
-            </Button>
           </div>
         </section>
         {isSideBarOpen && (

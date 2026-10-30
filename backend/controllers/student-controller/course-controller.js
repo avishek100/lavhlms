@@ -1,11 +1,44 @@
 const Course = require("../../models/Course");
-const User = require("../../models/User");
+const publicCourseFilter = {
+  $or: [
+    { isPublised: true },
+    { isPublished: true },
+    { isPublised: { $exists: false }, isPublished: { $exists: false } },
+  ],
+};
+
+function toPublicCourse(course) {
+  const publicCourse = course.toObject();
+  delete publicCourse.students;
+  delete publicCourse.instructorId;
+  let hasAssignedPreview = false;
+  publicCourse.curriculum = (publicCourse.curriculum || []).map((lecture) => {
+    if (!lecture.freePreview || hasAssignedPreview) {
+      return {
+        _id: lecture._id,
+        title: lecture.title,
+        freePreview: false,
+      };
+    }
+
+    hasAssignedPreview = true;
+    return {
+      _id: lecture._id,
+      title: lecture.title,
+      freePreview: true,
+      videoUrl: lecture.videoUrl,
+      readingMaterialUrl: lecture.readingMaterialUrl,
+      lessonContent: lecture.lessonContent,
+    };
+  });
+
+  return publicCourse;
+}
 
 const getAllStudentViewCourses = async (req, res) => {
   try {
     const {
       category = [],
-      level = [],
       primaryLanguage = [],
       search = "",
       sortBy = "title-atoz",
@@ -14,9 +47,6 @@ const getAllStudentViewCourses = async (req, res) => {
     let filters = {};
     if (category.length) {
       filters.category = { $in: category.split(",") };
-    }
-    if (level.length) {
-      filters.level = { $in: level.split(",") };
     }
     if (primaryLanguage.length) {
       filters.primaryLanguage = { $in: primaryLanguage.split(",") };
@@ -48,24 +78,16 @@ const getAllStudentViewCourses = async (req, res) => {
         break;
     }
 
-    if (req.user.role === "student") {
-      const student = await User.findById(req.user._id).select("studentClass");
-      if (!student?.studentClass) {
-        return res.status(403).json({
-          success: false,
-          message: "Your account does not have a class or batch assigned.",
-        });
-      }
-      filters.studentClass = student.studentClass;
-    }
-    const coursesList = await Course.find(filters).sort(sortParam);
+    const coursesList = await Course.find({
+      $and: [filters, publicCourseFilter],
+    }).sort(sortParam);
 
     res.status(200).json({
       success: true,
-      data: coursesList,
+      data: coursesList.map(toPublicCourse),
     });
   } catch (e) {
-    console.log(e);
+    console.error("Unable to load public courses:", e);
     res.status(500).json({
       success: false,
       message: "Some error occured!",
@@ -76,18 +98,10 @@ const getAllStudentViewCourses = async (req, res) => {
 const getStudentViewCourseDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const filter = { _id: id };
-    if (req.user.role === "student") {
-      const student = await User.findById(req.user._id).select("studentClass");
-      if (!student?.studentClass) {
-        return res.status(403).json({
-          success: false,
-          message: "Your account does not have a class or batch assigned.",
-          data: null,
-        });
-      }
-      filter.studentClass = student.studentClass;
-    }
+    const filter = {
+      _id: id,
+      ...publicCourseFilter,
+    };
     const courseDetails = await Course.findOne(filter);
 
     if (!courseDetails) {
@@ -100,10 +114,10 @@ const getStudentViewCourseDetails = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: courseDetails,
+      data: toPublicCourse(courseDetails),
     });
   } catch (e) {
-    console.log(e);
+    console.error("Unable to load public course details:", e);
     res.status(500).json({
       success: false,
       message: "Some error occured!",

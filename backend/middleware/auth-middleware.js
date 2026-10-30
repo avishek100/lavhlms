@@ -30,22 +30,31 @@ const authenticate = async (req, res, next) => {
   if (payload.collegeIssued !== true) {
     return res.status(401).json({
       success: false,
-      message: "This account was not issued by ADS College.",
+      message: "This account is not authorized to sign in.",
     });
   }
 
   try {
-    const user = await User.findById(payload._id).select("active role");
+    const user = await User.findById(payload._id).select("active role approved");
     if (!user) {
       return res.status(401).json({
         success: false,
         message: "This account is unavailable.",
       });
     }
-    if (["student", "instructor"].includes(user.role) && !user.active) {
+    if (
+      !["admin", "student"].includes(payload.role) ||
+      !["admin", "student"].includes(user.role)
+    ) {
       return res.status(403).json({
         success: false,
-        message: "This college account is blocked. Contact college staff.",
+        message: "Only student and administrator accounts can sign in.",
+      });
+    }
+    if (user.role === "student" && !user.active) {
+      return res.status(403).json({
+        success: false,
+        message: "This account is blocked. Contact the administrator.",
       });
     }
 
@@ -60,7 +69,10 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    req.user = payload;
+    req.user = {
+      ...payload,
+      approved: user.approved !== false,
+    };
     next();
   } catch (error) {
     next(error);

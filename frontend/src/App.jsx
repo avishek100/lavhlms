@@ -2,15 +2,15 @@ import { useLayoutEffect, useContext } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import LoginPage from "./pages/auth/login";
 import RegisterPage from "./pages/auth/register";
+import ForgotPasswordPage from "./pages/auth/forgot-password";
 import ChangePasswordPage from "./pages/auth/change-password";
 import RouteGuard from "./components/route-guard";
 import { AuthContext } from "./context/auth-context";
-import InstructorDashboardpage from "./pages/instructor";
 import StudentViewCommonLayout from "./components/student-view/common-layout";
 import StudentHomePage from "./pages/student/home";
 import ExamPreparationPage from "./pages/student/exam-preparation";
 import NotFoundPage from "./pages/not-found";
-import AddNewCoursePage from "./pages/instructor/add-new-course";
+import AdminCourseEditor from "./pages/admin/AdminCourseEditor";
 import StudentViewCoursesPage from "./pages/student/courses";
 import StudentViewCourseDetailsPage from "./pages/student/course-details";
 import StudentCoursesPage from "./pages/student/student-courses";
@@ -21,10 +21,8 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminStudents from "./pages/admin/AdminStudents";
 import AdminAddStudent from "./pages/admin/AdminAddStudent";
-import AdminTeachers from "./pages/admin/AdminTeachers";
-import AdminAddTeacher from "./pages/admin/AdminAddTeacher";
 import AdminCourses from "./pages/admin/AdminCourses";
-import InstructorNotices from "./components/instructor-view/notices";
+import AdminNotices from "./components/instructor-view/notices";
 import { Toaster } from 'react-hot-toast';
 
 function ScrollToTop() {
@@ -71,6 +69,7 @@ function App() {
       <Route path="/auth" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route
         path="/change-password"
         element={
@@ -95,46 +94,14 @@ function App() {
         <Route index element={<AdminDashboard />} />
         <Route path="students" element={<AdminStudents />} />
         <Route path="students/new" element={<AdminAddStudent />} />
-        <Route path="teachers" element={<AdminTeachers />} />
-        <Route path="teachers/new" element={<AdminAddTeacher />} />
         <Route path="courses" element={<AdminCourses />} />
         <Route
           path="notices"
-          element={<InstructorNotices isAdmin />}
+          element={<AdminNotices />}
         />
-        <Route path="courses/new" element={<AddNewCoursePage />} />
-        <Route path="courses/:courseId/edit" element={<AddNewCoursePage />} />
+        <Route path="courses/new" element={<AdminCourseEditor />} />
+        <Route path="courses/:courseId/edit" element={<AdminCourseEditor />} />
       </Route>
-      <Route
-        path="/instructor"
-        element={
-          <RouteGuard
-            element={<InstructorDashboardpage />}
-            authenticated={auth?.authenticate}
-            user={auth?.user}
-          />
-        }
-      />
-      <Route
-        path="/instructor/create-new-course"
-        element={
-          <RouteGuard
-            element={<AddNewCoursePage />}
-            authenticated={auth?.authenticate}
-            user={auth?.user}
-          />
-        }
-      />
-      <Route
-        path="/instructor/edit-course/:courseId"
-        element={
-          <RouteGuard
-            element={<AddNewCoursePage />}
-            authenticated={auth?.authenticate}
-            user={auth?.user}
-          />
-        }
-      />
       <Route
         path="/"
         element={<StudentViewCommonLayout />}
@@ -151,25 +118,11 @@ function App() {
         />
         <Route
           path="courses"
-          element={
-            <RouteGuard
-              element={<StudentViewCoursesPage />}
-              authenticated={auth?.authenticate}
-              user={auth?.user}
-              requiredRole="student"
-            />
-          }
+          element={<StudentViewCoursesPage />}
         />
         <Route
           path="course/details/:id"
-          element={
-            <RouteGuard
-              element={<StudentViewCourseDetailsPage />}
-              authenticated={auth?.authenticate}
-              user={auth?.user}
-              requiredRole="student"
-            />
-          }
+          element={<StudentViewCourseDetailsPage />}
         />
         <Route
           path="student-courses"
@@ -179,6 +132,7 @@ function App() {
               authenticated={auth?.authenticate}
               user={auth?.user}
               requiredRole="student"
+              requiresApproved
             />
           }
         />
@@ -212,6 +166,7 @@ function App() {
               authenticated={auth?.authenticate}
               user={auth?.user}
               requiredRole="student"
+              requiresApproved
             />
           }
         />

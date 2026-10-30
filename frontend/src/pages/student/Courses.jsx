@@ -28,7 +28,6 @@ const Course = ({course}) => {
                             <h1 className="font-medium text-sm">{course.creator?.name}</h1>
                         </div>
                         <Badge className={'bg-blue-600 text-white px-2 py-1 text-xs rounded-full'}>
-                            {course.courseLevel}
                         </Badge>
                     </div>
                     <div className="text-lg font-bold">

@@ -2,13 +2,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import VideoPlayer from "@/components/video-player";
+import { AuthContext } from "@/context/auth-context";
 import { StudentContext } from "@/context/student-context";
 import { fetchStudentViewCourseDetailsService } from "@/services";
-import { ArrowLeft, BookOpen, CheckCircle, FileText, PlayCircle } from "lucide-react";
-import { useContext, useEffect } from "react";
+import {
+  ArrowLeft,
+  BookOpen,
+  CheckCircle,
+  FileText,
+  LockKeyhole,
+  PlayCircle,
+} from "lucide-react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 function StudentViewCourseDetailsPage() {
+  const { auth } = useContext(AuthContext);
   const {
     studentViewCourseDetails,
     setStudentViewCourseDetails,
@@ -21,8 +30,23 @@ function StudentViewCourseDetailsPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
+  const [selectedPreviewIndex, setSelectedPreviewIndex] = useState(-1);
+  const curriculum = studentViewCourseDetails?.curriculum || [];
+  const firstPreviewIndex = curriculum.findIndex((item) => item.freePreview);
+  const activePreviewIndex =
+    selectedPreviewIndex >= 0 &&
+    curriculum[selectedPreviewIndex]?.freePreview
+      ? selectedPreviewIndex
+      : firstPreviewIndex;
+  const selectedPreview = curriculum[activePreviewIndex];
+  const canStartLearning =
+    auth?.authenticate &&
+    auth?.user?.role === "student" &&
+    auth.user.approved !== false;
+  const isPendingApproval =
+    auth?.user?.role === "student" && auth.user.approved === false;
 
-  async function fetchStudentViewCourseDetails() {
+  const fetchStudentViewCourseDetails = useCallback(async () => {
     const response = await fetchStudentViewCourseDetailsService(
       currentCourseDetailsId
     );
@@ -34,21 +58,32 @@ function StudentViewCourseDetailsPage() {
       setStudentViewCourseDetails(null);
       setLoadingState(false);
     }
-  }
+  }, [
+    currentCourseDetailsId,
+    setLoadingState,
+    setStudentViewCourseDetails,
+  ]);
 
   useEffect(() => {
     if (currentCourseDetailsId !== null) fetchStudentViewCourseDetails();
-  }, [currentCourseDetailsId]);
+  }, [currentCourseDetailsId, fetchStudentViewCourseDetails]);
 
   useEffect(() => {
-    if (id) setCurrentCourseDetailsId(id);
-  }, [id]);
+    if (id) {
+      setCurrentCourseDetailsId(id);
+      setSelectedPreviewIndex(-1);
+    }
+  }, [id, setCurrentCourseDetailsId]);
 
   useEffect(() => {
     if (!location.pathname.includes("course/details"))
       setStudentViewCourseDetails(null),
         setCurrentCourseDetailsId(null);
-  }, [location.pathname]);
+  }, [
+    location.pathname,
+    setCurrentCourseDetailsId,
+    setStudentViewCourseDetails,
+  ]);
 
   if (loadingState) return <Skeleton />;
 
@@ -110,30 +145,38 @@ function StudentViewCourseDetailsPage() {
           <Card className="rounded-xl border-slate-200 shadow-sm">
             <CardHeader>
               <CardTitle className="text-lg">Course curriculum</CardTitle>
+              <p className="text-sm text-slate-500">
+                Preview free lessons now. Full lessons unlock after approval.
+              </p>
             </CardHeader>
             <CardContent className="divide-y divide-slate-100">
-              {studentViewCourseDetails?.curriculum?.map(
-                (curriculumItem, index) => (
+              {curriculum.map((curriculumItem, index) => (
                   <button
                     type="button"
                     key={curriculumItem?._id || index}
-                    className="-mx-2 flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-sm text-slate-700 hover:bg-blue-50"
-                    onClick={() => navigate(`/course-progress/${id}`)}
+                    disabled={!curriculumItem?.freePreview}
+                    className="-mx-2 flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-sm text-slate-700 enabled:hover:bg-blue-50 disabled:cursor-not-allowed disabled:text-slate-400"
+                    onClick={() => setSelectedPreviewIndex(index)}
+                    aria-pressed={activePreviewIndex === index}
                   >
-                    {curriculumItem?.readingMaterialUrl ||
-                    curriculumItem?.lessonContent ? (
+                    {curriculumItem?.freePreview ? (
+                      curriculumItem?.readingMaterialUrl ||
+                      curriculumItem?.lessonContent ? (
                       <FileText aria-hidden="true" className="h-4 w-4 text-blue-700" />
+                      ) : (
+                        <PlayCircle aria-hidden="true" className="h-4 w-4 text-blue-700" />
+                      )
                     ) : (
-                      <PlayCircle aria-hidden="true" className="h-4 w-4 text-blue-700" />
+                      <LockKeyhole aria-hidden="true" className="h-4 w-4" />
                     )}
                     <span>{curriculumItem?.title}</span>
-                    {(curriculumItem?.readingMaterialUrl ||
-                      curriculumItem?.lessonContent) && (
-                      <span className="ml-auto text-xs text-slate-500">Reading</span>
-                    )}
+                    <span className="ml-auto text-xs text-slate-500">
+                      {curriculumItem?.freePreview
+                        ? "1-minute preview"
+                        : "Locked"}
+                    </span>
                   </button>
-                )
-              )}
+                ))}
             </CardContent>
           </Card>
         </section>
@@ -141,22 +184,40 @@ function StudentViewCourseDetailsPage() {
           <Card className="top-24 overflow-hidden rounded-xl border-slate-200 shadow-sm lg:sticky">
             <CardContent className="p-6">
               <div className="mb-5 aspect-video overflow-hidden rounded-lg bg-slate-100">
-                {studentViewCourseDetails?.curriculum?.some(
-                  (item) => item.videoUrl
-                ) ? (
+                {selectedPreview?.videoUrl ? (
                   <VideoPlayer
-                    url={
-                      studentViewCourseDetails.curriculum.find(
-                        (item) => item.videoUrl
-                      ).videoUrl
-                    }
+                    url={selectedPreview.videoUrl}
                     width="100%"
                     height="100%"
+                    maxPreviewSeconds={60}
                   />
+                ) : selectedPreview?.readingMaterialUrl ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 p-5 text-center text-slate-600">
+                    <FileText aria-hidden="true" className="h-10 w-10 text-blue-700" />
+                    <span className="text-sm font-medium">
+                      {selectedPreview.title}
+                    </span>
+                    <a
+                      href={selectedPreview.readingMaterialUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm font-medium text-blue-700 hover:underline"
+                    >
+                      Open lesson preview
+                    </a>
+                  </div>
+                ) : selectedPreview?.lessonContent ? (
+                  <div className="h-full overflow-y-auto p-4 text-sm leading-6 text-slate-700">
+                    {selectedPreview.lessonContent}
+                  </div>
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-3 text-slate-500">
-                    <FileText aria-hidden="true" className="h-10 w-10" />
-                    <span className="text-sm">Written course lessons</span>
+                    <BookOpen aria-hidden="true" className="h-10 w-10" />
+                    <span className="text-sm">
+                      {selectedPreview
+                        ? "Preview lesson content unavailable"
+                        : "No free preview is available"}
+                    </span>
                   </div>
                 )}
               </div>
@@ -164,12 +225,39 @@ function StudentViewCourseDetailsPage() {
                 <BookOpen aria-hidden="true" className="h-4 w-4" />
                 IELTS &amp; PTE preparation
               </div>
-              <Button
-                onClick={() => navigate(`/course-progress/${id}`)}
-                className="h-11 w-full rounded-lg"
-              >
-                Start learning
-              </Button>
+              {canStartLearning ? (
+                <Button
+                  onClick={() => navigate(`/course-progress/${id}`)}
+                  className="h-11 w-full rounded-lg"
+                >
+                  Start learning
+                </Button>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-center text-sm text-slate-500">
+                    {isPendingApproval
+                      ? "Full course access will be available after approval."
+                      : "Sign in with an approved student account to access the full course."}
+                  </p>
+                  {!isPendingApproval && (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <Button
+                        onClick={() => navigate("/login")}
+                        className="h-11 w-full rounded-lg"
+                      >
+                        Sign in
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => navigate("/register")}
+                        className="h-11 w-full rounded-lg"
+                      >
+                        Sign up
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </aside>
