@@ -259,9 +259,6 @@ function StudentHomePage() {
                   <h3 className="line-clamp-2 min-h-12 font-semibold text-slate-900">
                     {courseItem?.title}
                   </h3>
-                  <p className="mt-2 text-sm text-slate-500">
-                    {courseItem?.instructorName}
-                  </p>
                   <p className="mt-4 text-sm font-medium text-emerald-700">
                     Preview lessons · Sign in for full access
                   </p>
