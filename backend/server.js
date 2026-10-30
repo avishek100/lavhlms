@@ -18,6 +18,7 @@ const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
 
 const allowedOrigins = [
+  "https://lavhlms.vercel.app",
   ...(process.env.CLIENT_URL || "").split(",").map((origin) => origin.trim()),
   "http://localhost:5173",
   "http://127.0.0.1:5173",

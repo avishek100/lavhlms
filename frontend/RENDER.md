@@ -1,20 +1,32 @@
-# Render deployment
+# Render backend and Vercel frontend
 
-Create a **Static Site** from this repository and configure:
+The backend runs on Render at `https://lavhlms.onrender.com`. The frontend is a
+Vite single-page app configured for Vercel in `vercel.json`; its production API
+URL is `https://lavhlms.onrender.com` from `.env.production`.
+
+## Deploy the frontend to Vercel
+
+Import this GitHub repository into Vercel and set:
 
 - Root Directory: `frontend`
-- Build Command: `npm ci && npm run build`
-- Publish Directory: `dist`
+- Framework Preset: Vite
+- Build Command: `npm run build`
+- Output Directory: `dist`
 - Environment Variable: `VITE_API_URL=https://lavhlms.onrender.com`
-- Rewrite Rule: source `/*`, destination `/index.html`, action **Rewrite**
 
-The production build reads `VITE_API_URL` from `.env.production` and sends API
-requests to the existing backend at `https://lavhlms.onrender.com`. You can
-also set the same value in the Render dashboard under the Static Site's
-environment settings.
+The rewrite in `vercel.json` sends client-side routes back to `index.html`.
+The production Vercel origin `https://lavhlms.vercel.app` is already allowed
+by the backend CORS configuration. If you connect a custom domain or another
+production origin, add it to the Render backend's `CLIENT_URL` environment
+variable.
 
-After creating the Static Site:
+## Connect backend CORS
 
-1. Copy its `https://...onrender.com` URL.
-2. Set `CLIENT_URL` in the backend Render service to that exact URL.
-3. Save and redeploy the backend so its CORS configuration allows the frontend.
+For a custom domain or additional production origins, set `CLIENT_URL` in the
+Render backend service's environment settings to a comma-separated list of
+origins with no paths, for example:
+`https://www.example.com,https://another-production-origin.vercel.app`.
+Save the environment variable and redeploy the backend. Preview deployment
+origins are not allowed unless explicitly added.
+
+Do not change backend secrets or database settings when updating `CLIENT_URL`.
