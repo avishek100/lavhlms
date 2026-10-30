@@ -45,9 +45,6 @@ function StudentCoursesPage() {
                   className="mb-4 h-48 w-full rounded-lg object-cover"
                 />
                 <h3 className="font-semibold text-slate-900">{course?.title}</h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  {course?.instructorName}
-                </p>
               </CardContent>
               <CardFooter className="pt-0">
                 <Button

@@ -246,7 +246,7 @@ function StudentHomePage() {
                 }}
                 role="button"
                 tabIndex={0}
-                className="group cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-white transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-blue-600"
+                className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-blue-600"
               >
                 <img
                   src={courseItem?.image}
@@ -255,11 +255,22 @@ function StudentHomePage() {
                   alt={courseItem?.title || "Course"}
                   className="h-40 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                 />
-                <div className="p-4">
+                <div className="flex flex-1 flex-col p-4">
                   <h3 className="line-clamp-2 min-h-12 font-semibold text-slate-900">
                     {courseItem?.title}
                   </h3>
-                  <p className="mt-4 text-sm font-medium text-emerald-700">
+                  {courseItem?.subtitle &&
+                    courseItem.subtitle !== courseItem.title && (
+                      <p className="mt-2 line-clamp-2 text-sm font-medium text-slate-700">
+                        {courseItem.subtitle}
+                      </p>
+                    )}
+                  {courseItem?.description && (
+                    <p className="mt-2 line-clamp-3 text-sm leading-5 text-slate-500">
+                      {courseItem.description}
+                    </p>
+                  )}
+                  <p className="mt-auto pt-4 text-sm font-medium text-emerald-700">
                     Preview lessons · Sign in for full access
                   </p>
                 </div>

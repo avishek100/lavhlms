@@ -107,9 +107,6 @@ function StudentViewCourseDetailsPage() {
           </p>
           <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-300">
             <span>
-              By <span className="font-medium text-white">{studentViewCourseDetails?.instructorName}</span>
-            </span>
-            <span>
               {studentViewCourseDetails?.curriculum?.length || 0} lessons
             </span>
           </div>

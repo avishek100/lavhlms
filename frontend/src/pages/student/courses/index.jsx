@@ -282,12 +282,6 @@ function StudentViewCoursesPage() {
                       <CardTitle className="mb-2 text-lg font-semibold text-slate-900">
                         {courseItem?.title}
                       </CardTitle>
-                      <p className="mb-1 text-sm text-slate-500">
-                        Created By{" "}
-                        <span className="font-medium text-slate-700">
-                          {courseItem?.instructorName}
-                        </span>
-                      </p>
                       <p className="mb-2 mt-3 text-sm text-slate-500">
                         {`${courseItem?.curriculum?.length} ${
                           courseItem?.curriculum?.length <= 1
