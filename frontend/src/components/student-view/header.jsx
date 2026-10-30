@@ -1,6 +1,7 @@
 import { AuthContext } from "@/context/auth-context";
 import {
   BookOpen,
+  ChevronDown,
   GraduationCap,
   LogOut,
   Menu,
@@ -20,11 +21,46 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "../ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+
+const topFeatures = [
+  {
+    title: "Instructor's Notes & Videos",
+    description: "Comprehensive study materials and video lessons.",
+  },
+  {
+    title: "Authentic Sample Answers",
+    description: "Real instructor-written examples to guide your practice.",
+  },
+  {
+    title: "Tips & Strategies",
+    description: "Practical techniques to boost your test performance.",
+  },
+  {
+    title: "Writing Specialization",
+    description: "Deep dive into Lexical Resource and Grammar.",
+  },
+  {
+    title: "Speaking Specialization",
+    description:
+      "Focused training on Pronunciation, Fluency, Lexical Resource, and Grammar.",
+  },
+  {
+    title: "Test Date Booking Service",
+    description: "Hassle-free assistance with scheduling your exam.",
+  },
+];
 
 function StudentViewCommonHeader() {
   const navigate = useNavigate();
   const { auth, resetCredentials } = useContext(AuthContext);
   const [profileImage, setProfileImage] = useState("");
+  const [showMobileTopFeatures, setShowMobileTopFeatures] = useState(false);
   const isPendingApproval =
     auth?.user?.role === "student" && auth.user.approved === false;
 
@@ -81,7 +117,41 @@ function StudentViewCommonHeader() {
             IELTS &amp; PTE Prep
           </span>
         </Link>
-        <div className="hidden items-center justify-end gap-0.5 lg:flex">
+        <div className="hidden items-center justify-end gap-0 lg:flex [&>*]:px-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="gap-1 text-slate-600 hover:text-blue-700"
+              >
+                Top Features
+                <ChevronDown aria-hidden="true" className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="w-[min(25rem,calc(100vw-2rem))] p-4"
+            >
+              <DropdownMenuLabel className="px-1 text-xs font-semibold uppercase tracking-wider text-blue-700">
+                Top Features
+              </DropdownMenuLabel>
+              <ul className="mt-2 space-y-3">
+                {topFeatures.map((feature) => (
+                  <li
+                    key={feature.title}
+                    className="relative pl-4 text-sm before:absolute before:left-0 before:top-2 before:h-1.5 before:w-1.5 before:rounded-full before:bg-blue-700"
+                  >
+                    <p className="font-medium text-slate-900">
+                      {feature.title}
+                    </p>
+                    <p className="mt-0.5 leading-5 text-slate-500">
+                      {feature.description}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             asChild
             variant="ghost"
@@ -233,6 +303,7 @@ function StudentViewCommonHeader() {
             <nav aria-label="Mobile navigation" className="flex flex-col gap-1">
               {[
                 ["Home", "/home"],
+                ["Top Features", null],
                 ["IELTS", "/ielts"],
                 ["PTE", "/pte"],
                 ["All courses", "/courses"],
@@ -248,6 +319,44 @@ function StudentViewCommonHeader() {
                   ? [["Admin", "/admin"]]
                   : []),
               ].map(([label, to]) => (
+                label === "Top Features" ? (
+                  <div key={label}>
+                    <button
+                      type="button"
+                      aria-expanded={showMobileTopFeatures}
+                      aria-controls="mobile-top-features"
+                      onClick={() =>
+                        setShowMobileTopFeatures((isExpanded) => !isExpanded)
+                      }
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-blue-50 hover:text-blue-800"
+                    >
+                      Top Features
+                      <ChevronDown
+                        aria-hidden="true"
+                        className={`h-4 w-4 transition-transform ${
+                          showMobileTopFeatures ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {showMobileTopFeatures && (
+                      <ul
+                        id="mobile-top-features"
+                        className="ml-3 mt-1 space-y-3 border-l-2 border-blue-100 py-2 pl-4"
+                      >
+                        {topFeatures.map((feature) => (
+                          <li key={feature.title} className="text-sm">
+                            <p className="font-medium text-slate-900">
+                              {feature.title}
+                            </p>
+                            <p className="mt-0.5 leading-5 text-slate-500">
+                              {feature.description}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ) : (
                 <SheetClose asChild key={to}>
                   <Link
                     to={to}
@@ -256,6 +365,7 @@ function StudentViewCommonHeader() {
                     {label}
                   </Link>
                 </SheetClose>
+                )
               ))}
               {["Duolingo", "CELPIP"].map((program) => (
                 <SheetClose asChild key={program}>
