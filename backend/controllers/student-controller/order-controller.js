@@ -152,6 +152,14 @@ const capturePaymentAndFinalizeOrder = async (req, res) => {
       });
     }
 
+    const purchasedCourse = await Course.findById(order.courseId);
+    if (!purchasedCourse) {
+      return res.status(404).json({
+        success: false,
+        message: "The purchased course could not be found.",
+      });
+    }
+
     order.paymentStatus = "paid";
     order.orderStatus = "confirmed";
     order.paymentId = paymentId;
@@ -160,37 +168,38 @@ const capturePaymentAndFinalizeOrder = async (req, res) => {
     await order.save();
 
     //update out student course model
+    const categoryCourses = purchasedCourse.category
+      ? await Course.find({ category: purchasedCourse.category }).select(
+          "_id title instructorId instructorName image"
+        )
+      : [purchasedCourse];
     const studentCourses = await StudentCourses.findOne({
       userId: order.userId,
     });
+    const existingCourseIds = new Set(
+      (studentCourses?.courses || []).map((course) => course.courseId)
+    );
+    const coursesToAdd = categoryCourses
+      .filter((course) => !existingCourseIds.has(course._id.toString()))
+      .map((course) => ({
+        courseId: course._id.toString(),
+        title: course.title,
+        instructorId: course.instructorId,
+        instructorName: course.instructorName,
+        dateOfPurchase: order.orderDate,
+        courseImage: course.image,
+      }));
 
     if (studentCourses) {
-      studentCourses.courses.push({
-        courseId: order.courseId,
-        title: order.courseTitle,
-        instructorId: order.instructorId,
-        instructorName: order.instructorName,
-        dateOfPurchase: order.orderDate,
-        courseImage: order.courseImage,
-      });
-
-      await studentCourses.save();
+      if (coursesToAdd.length) {
+        studentCourses.courses.push(...coursesToAdd);
+        await studentCourses.save();
+      }
     } else {
-      const newStudentCourses = new StudentCourses({
+      await new StudentCourses({
         userId: order.userId,
-        courses: [
-          {
-            courseId: order.courseId,
-            title: order.courseTitle,
-            instructorId: order.instructorId,
-            instructorName: order.instructorName,
-            dateOfPurchase: order.orderDate,
-            courseImage: order.courseImage,
-          },
-        ],
-      });
-
-      await newStudentCourses.save();
+        courses: coursesToAdd,
+      }).save();
     }
 
     //update the course schema students
