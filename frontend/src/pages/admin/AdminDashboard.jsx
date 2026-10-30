@@ -19,8 +19,26 @@ import { toast } from "react-hot-toast";
 import { Link } from "react-router-dom";
 
 const programs = [
-  { id: "ielts-preparation", label: "IELTS", color: "bg-sky-500" },
-  { id: "pte-preparation", label: "PTE", color: "bg-violet-500" },
+  {
+    id: "ielts-preparation",
+    label: "IELTS",
+    iconStyle: "bg-sky-50 text-sky-700",
+  },
+  {
+    id: "pte-preparation",
+    label: "PTE",
+    iconStyle: "bg-violet-50 text-violet-700",
+  },
+  {
+    id: "duolingo-preparation",
+    label: "Duolingo",
+    iconStyle: "bg-emerald-50 text-emerald-700",
+  },
+  {
+    id: "celpip-preparation",
+    label: "CELPIP",
+    iconStyle: "bg-amber-50 text-amber-700",
+  },
 ];
 
 export default function AdminDashboard() {
@@ -157,11 +175,7 @@ export default function AdminDashboard() {
               label={`${program.label} courses`}
               value={courseCountByProgram[program.id]}
               icon={GraduationCap}
-              iconStyle={
-                program.label === "IELTS"
-                  ? "bg-sky-50 text-sky-700"
-                  : "bg-violet-50 text-violet-700"
-              }
+              iconStyle={program.iconStyle}
               detail={`Courses in ${program.label} preparation`}
             />
           ))}

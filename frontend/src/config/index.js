@@ -21,8 +21,8 @@ export const initialSignInFormData = {
 };
 
 export const courseExamOptions = [
-  { id: "ielts-preparation", label: "IELTS Preparation" },
-  { id: "pte-preparation", label: "PTE Preparation" },
+  { id: "ielts-preparation", label: "IELTS" },
+  { id: "pte-preparation", label: "PTE" },
   { id: "duolingo-preparation", label: "Duolingo" },
   { id: "celpip-preparation", label: "CELPIP" },
 ];

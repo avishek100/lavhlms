@@ -5,12 +5,15 @@ import {
   GraduationCap,
   LayoutDashboard,
   LogOut,
+  Mail,
   Megaphone,
   UserPlus,
   Users,
 } from "lucide-react";
-import { useContext } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { fetchContactInquiriesService } from "@/services";
+import { toast } from "react-hot-toast";
 
 const navigationItems = [
   { label: "Dashboard", to: "/admin", icon: LayoutDashboard, end: true },
@@ -18,11 +21,49 @@ const navigationItems = [
   { label: "Add Student", to: "/admin/students/new", icon: UserPlus },
   { label: "Courses", to: "/admin/courses", icon: BookOpen },
   { label: "Notices", to: "/admin/notices", icon: Megaphone },
+  { label: "Contact messages", to: "/admin/contact-inquiries", icon: Mail },
 ];
 
 export default function AdminLayout() {
   const { resetCredentials } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [hasUnreadContactMessages, setHasUnreadContactMessages] = useState(false);
+
+  const updateUnreadContactMessages = useCallback(async () => {
+    try {
+      const response = await fetchContactInquiriesService();
+      if (!response?.success) {
+        throw new Error(response?.message || "Unable to check contact messages.");
+      }
+      setHasUnreadContactMessages(
+        (response.data || []).some((inquiry) => inquiry.status === "new")
+      );
+    } catch (error) {
+      console.error("Unable to check for unread contact messages:", error);
+      toast.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Unable to check contact messages."
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    updateUnreadContactMessages();
+    const intervalId = window.setInterval(updateUnreadContactMessages, 60000);
+    window.addEventListener(
+      "contact-inquiries-updated",
+      updateUnreadContactMessages
+    );
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener(
+        "contact-inquiries-updated",
+        updateUnreadContactMessages
+      );
+    };
+  }, [updateUnreadContactMessages]);
 
   function handleLogout() {
     resetCredentials();
@@ -54,6 +95,11 @@ export default function AdminLayout() {
                 key={to}
                 to={to}
                 end={end}
+                aria-label={
+                  label === "Contact messages" && hasUnreadContactMessages
+                    ? `${label}, unread messages`
+                    : label
+                }
                 className={({ isActive }) =>
                   `flex h-10 shrink-0 items-center rounded-lg px-3 text-sm font-medium transition-colors ${
                     isActive
@@ -63,7 +109,13 @@ export default function AdminLayout() {
                 }
               >
                 <Icon aria-hidden="true" className="mr-2 h-4 w-4" />
-                {label}
+                <span>{label}</span>
+                {label === "Contact messages" && hasUnreadContactMessages && (
+                  <span
+                    aria-hidden="true"
+                    className="ml-auto h-2.5 w-2.5 rounded-full bg-red-600"
+                  />
+                )}
               </NavLink>
             ))}
           </nav>

@@ -34,7 +34,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 function createSearchParamsHelper(filterParams) {
   const queryParams = [];
@@ -53,8 +53,10 @@ function createSearchParamsHelper(filterParams) {
 function StudentViewCoursesPage() {
   const [sort, setSort] = useState("title-atoz");
   const [filters, setFilters] = useState({});
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [searchError, setSearchError] = useState("");
   const requestIdRef = useRef(0);
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get("search") || "";
   const {
@@ -195,6 +197,15 @@ function StudentViewCoursesPage() {
   }, []);
 
   useEffect(() => {
+    const programCategory = location.state?.programCategory;
+    if (!programCategory) return;
+
+    const nextFilters = { category: [programCategory] };
+    setFilters(nextFilters);
+    sessionStorage.setItem("filters", JSON.stringify(nextFilters));
+  }, [location.state?.programCategory]);
+
+  useEffect(() => {
     if (filters !== null && sort !== null)
       fetchAllStudentViewCourses(filters, sort);
     return () => {
@@ -251,8 +262,19 @@ function StudentViewCoursesPage() {
                 Clear
               </Button>
             )}
+            <Button
+              type="button"
+              variant="outline"
+              className="h-8 px-2 text-xs lg:hidden"
+              aria-expanded={showMobileFilters}
+              onClick={() => setShowMobileFilters((shown) => !shown)}
+            >
+              {showMobileFilters ? "Hide" : "Show"}
+            </Button>
           </div>
-          <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-1">
+          <div
+            className={`${showMobileFilters ? "grid" : "hidden"} gap-1 sm:grid-cols-2 lg:grid lg:grid-cols-1`}
+          >
             {Object.keys(filterOptions).map((sectionItem) => (
               <fieldset
                 className="border-b border-slate-100 p-4 last:border-b-0"

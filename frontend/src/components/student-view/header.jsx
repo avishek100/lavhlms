@@ -3,6 +3,7 @@ import {
   BookOpen,
   GraduationCap,
   LogOut,
+  Menu,
   Megaphone,
   UserRound,
 } from "lucide-react";
@@ -10,6 +11,15 @@ import { fetchProfileService } from "@/services";
 import { useContext, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "../ui/sheet";
 
 function StudentViewCommonHeader() {
   const navigate = useNavigate();
@@ -52,6 +62,11 @@ function StudentViewCommonHeader() {
     navigate("/login");
   }
 
+  function navigateToProgramCourses(category) {
+    sessionStorage.setItem("filters", JSON.stringify({ category: [category] }));
+    navigate("/courses", { state: { programCategory: category } });
+  }
+
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
       <nav
@@ -66,7 +81,7 @@ function StudentViewCommonHeader() {
             IELTS &amp; PTE Prep
           </span>
         </Link>
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="hidden items-center justify-end gap-0.5 lg:flex">
           <Button
             asChild
             variant="ghost"
@@ -82,6 +97,22 @@ function StudentViewCommonHeader() {
             <Link to="/pte">PTE</Link>
           </Button>
           <Button
+            variant="ghost"
+            className="text-slate-600 hover:text-blue-700"
+            onClick={() =>
+            navigateToProgramCourses("duolingo-preparation")
+            }
+          >
+            Duolingo
+          </Button>
+          <Button
+            variant="ghost"
+            className="text-slate-600 hover:text-blue-700"
+            onClick={() => navigateToProgramCourses("celpip-preparation")}
+          >
+            CELPIP
+          </Button>
+          <Button
             asChild
             variant="ghost"
             className="gap-2 text-slate-600 hover:text-blue-700"
@@ -91,6 +122,20 @@ function StudentViewCommonHeader() {
               <span className="hidden sm:inline">All courses</span>
               <span className="sm:hidden">All</span>
             </Link>
+          </Button>
+          <Button
+            asChild
+            variant="ghost"
+            className="text-slate-600 hover:text-blue-700"
+          >
+            <Link to="/about">About us</Link>
+          </Button>
+          <Button
+            asChild
+            variant="ghost"
+            className="text-slate-600 hover:text-blue-700"
+          >
+            <Link to="/contact">Contact us</Link>
           </Button>
           {!isPendingApproval && auth?.user?.role === "student" && (
             <>
@@ -163,6 +208,107 @@ function StudentViewCommonHeader() {
             </Button>
           )}
         </div>
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0 rounded-lg lg:hidden"
+              aria-label="Open navigation menu"
+            >
+              <Menu aria-hidden="true" className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent className="flex w-[min(22rem,85vw)] flex-col overflow-y-auto p-5">
+            <SheetHeader className="mb-5 text-left">
+              <SheetTitle>
+                <Link to="/home" className="text-slate-900">
+                  IELTS &amp; PTE Prep
+                </Link>
+              </SheetTitle>
+              <SheetDescription className="sr-only">
+                Navigate to courses, college information, and account pages.
+              </SheetDescription>
+            </SheetHeader>
+            <nav aria-label="Mobile navigation" className="flex flex-col gap-1">
+              {[
+                ["Home", "/home"],
+                ["IELTS", "/ielts"],
+                ["PTE", "/pte"],
+                ["All courses", "/courses"],
+                ["About us", "/about"],
+                ["Contact us", "/contact"],
+                ...(auth?.user?.role === "student" && !isPendingApproval
+                  ? [["My courses", "/student-courses"]]
+                  : []),
+                ...(auth?.user?.role === "student"
+                  ? [["Notices", "/notices"]]
+                  : []),
+                ...(auth?.user?.role === "admin"
+                  ? [["Admin", "/admin"]]
+                  : []),
+              ].map(([label, to]) => (
+                <SheetClose asChild key={to}>
+                  <Link
+                    to={to}
+                    className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-blue-50 hover:text-blue-800"
+                  >
+                    {label}
+                  </Link>
+                </SheetClose>
+              ))}
+              {["Duolingo", "CELPIP"].map((program) => (
+                <SheetClose asChild key={program}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigateToProgramCourses(
+                        program === "Duolingo"
+                          ? "duolingo-preparation"
+                          : "celpip-preparation"
+                      )
+                    }
+                    className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-blue-50 hover:text-blue-800"
+                  >
+                    {program}
+                  </button>
+                </SheetClose>
+              ))}
+              {auth?.user?.role === "student" && (
+                <SheetClose asChild>
+                  <Link
+                    to="/profile"
+                    className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-blue-50 hover:text-blue-800"
+                  >
+                    Profile
+                  </Link>
+                </SheetClose>
+              )}
+            </nav>
+            <div className="mt-auto border-t border-slate-100 pt-4">
+              <SheetClose asChild>
+                {auth?.authenticate ? (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-2"
+                    onClick={handleLogout}
+                  >
+                    <LogOut aria-hidden="true" className="h-4 w-4" />
+                    Sign out
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => navigate("/login")}
+                  >
+                    Sign in
+                  </Button>
+                )}
+              </SheetClose>
+            </div>
+          </SheetContent>
+        </Sheet>
       </nav>
     </header>
   );

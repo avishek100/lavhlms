@@ -132,6 +132,23 @@ export async function createAdminNoticeService(payload) {
   return data;
 }
 
+export async function createContactInquiryService(payload) {
+  const { data } = await publicAxiosInstance.post("/contact", payload);
+  return data;
+}
+
+export async function fetchContactInquiriesService() {
+  const { data } = await axiosInstance.get("/admin/contact-inquiries");
+  return data;
+}
+
+export async function markContactInquiryReadService(id) {
+  const { data } = await axiosInstance.put(
+    `/admin/contact-inquiries/${id}/read`
+  );
+  return data;
+}
+
 export async function fetchStudentNoticesService() {
   const { data } = await axiosInstance.get("/student/notices");
   return data;

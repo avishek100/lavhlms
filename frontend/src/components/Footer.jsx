@@ -52,6 +52,12 @@ export default function Footer() {
             <Link to="/pte" className="text-sm hover:text-white">
               PTE
             </Link>
+            <Link to="/about" className="text-sm hover:text-white">
+              About us
+            </Link>
+            <Link to="/contact" className="text-sm hover:text-white">
+              Contact us
+            </Link>
             <Link to="/login" className="text-sm hover:text-white">
               Sign in
             </Link>

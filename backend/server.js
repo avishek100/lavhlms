@@ -14,6 +14,7 @@ const studentCoursesRoutes = require("./routes/student-routes/student-courses-ro
 const studentCourseProgressRoutes = require("./routes/student-routes/course-progress-routes");
 const instructorActivityRoutes = require("./routes/instructor-routes/activity-routes");
 const studentNoticeRoutes = require("./routes/student-routes/notice-routes");
+const contactRoutes = require("./routes/contact-routes");
 const app = express();
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
@@ -141,6 +142,8 @@ app.use("/media", mediaRoutes);
 app.use("/admin/courses", instructorCourseRoutes);
 app.use("/admin", instructorActivityRoutes);
 app.use("/student/notices", studentNoticeRoutes);
+app.use("/contact", contactRoutes.publicRouter);
+app.use("/admin/contact-inquiries", contactRoutes.adminRouter);
 app.use("/student/course", studentViewCourseRoutes);
 app.use("/student/courses-bought", studentCoursesRoutes);
 app.use("/student/course-progress", studentCourseProgressRoutes);

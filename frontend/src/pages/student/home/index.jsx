@@ -19,7 +19,7 @@ import {
   SlidersHorizontal,
   Target,
 } from "lucide-react";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import banner from "../../../../public/banner-img.png";
 
@@ -31,6 +31,8 @@ function StudentHomePage() {
   const [isLoadingCourses, setIsLoadingCourses] = useState(true);
   const [coursesError, setCoursesError] = useState("");
   const [courseFilters, setCourseFilters] = useState({});
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const coursesSectionRef = useRef(null);
   const filteredCourses = useMemo(
     () =>
       studentViewCoursesList.filter((course) =>
@@ -48,6 +50,14 @@ function StudentHomePage() {
     (count, selectedValues) => count + selectedValues.length,
     0
   );
+  useEffect(() => {
+    if (activeFilterCount > 0) {
+      coursesSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }, [courseFilters, activeFilterCount]);
   const filterIcons = {
     category: GraduationCap,
     formats: BookOpen,
@@ -149,8 +159,19 @@ function StudentHomePage() {
                 Clear
               </Button>
             )}
+            <Button
+              type="button"
+              variant="outline"
+              className="h-8 px-2 text-xs lg:hidden"
+              aria-expanded={showMobileFilters}
+              onClick={() => setShowMobileFilters((shown) => !shown)}
+            >
+              {showMobileFilters ? "Hide" : "Show"}
+            </Button>
           </div>
-          <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-1">
+          <div
+            className={`${showMobileFilters ? "grid" : "hidden"} gap-1 sm:grid-cols-2 lg:grid lg:grid-cols-1`}
+          >
             {Object.entries(filterOptions).map(([section, options]) => {
               const Icon = filterIcons[section];
               const sectionTitle =
@@ -353,7 +374,7 @@ function StudentHomePage() {
         </div>
       </section>
 
-      <section className="py-12">
+      <section ref={coursesSectionRef} className="scroll-mt-20 py-12">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-blue-700">
@@ -362,6 +383,13 @@ function StudentHomePage() {
             <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
               Preparation courses
             </h2>
+            {activeFilterCount > 0 && !isLoadingCourses && !coursesError && (
+              <p aria-live="polite" className="mt-1 text-sm text-slate-500">
+                Showing {filteredCourses.length}{" "}
+                {filteredCourses.length === 1 ? "course" : "courses"} matching
+                your filters
+              </p>
+            )}
           </div>
           <Button
             variant="ghost"

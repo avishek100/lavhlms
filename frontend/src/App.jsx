@@ -23,6 +23,9 @@ import AdminStudents from "./pages/admin/AdminStudents";
 import AdminAddStudent from "./pages/admin/AdminAddStudent";
 import AdminCourses from "./pages/admin/AdminCourses";
 import AdminNotices from "./components/instructor-view/notices";
+import AboutPage from "./pages/student/about";
+import ContactPage from "./pages/student/contact";
+import AdminContactInquiries from "./pages/admin/AdminContactInquiries";
 import { Toaster } from 'react-hot-toast';
 
 function ScrollToTop() {
@@ -99,6 +102,7 @@ function App() {
           path="notices"
           element={<AdminNotices />}
         />
+        <Route path="contact-inquiries" element={<AdminContactInquiries />} />
         <Route path="courses/new" element={<AdminCourseEditor />} />
         <Route path="courses/:courseId/edit" element={<AdminCourseEditor />} />
       </Route>
@@ -108,6 +112,8 @@ function App() {
       >
         <Route path="" element={<StudentHomePage />} />
         <Route path="home" element={<StudentHomePage />} />
+        <Route path="about" element={<AboutPage />} />
+        <Route path="contact" element={<ContactPage />} />
         <Route
           path="ielts"
           element={<ExamPreparationPage exam="ielts" />}
