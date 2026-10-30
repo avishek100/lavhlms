@@ -17,7 +17,15 @@ import {
 } from "@/config";
 import { StudentContext } from "@/context/student-context";
 import { fetchStudentViewCourseListService } from "@/services";
-import { ArrowUpDownIcon } from "lucide-react";
+import {
+  ArrowUpDownIcon,
+  BookOpen,
+  Clock3,
+  GraduationCap,
+  RotateCcw,
+  SlidersHorizontal,
+  Target,
+} from "lucide-react";
 import {
   useCallback,
   useContext,
@@ -71,20 +79,48 @@ function StudentViewCoursesPage() {
   }, [studentViewCoursesList]);
   const visibleCourses = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase();
-    const selectedCategories = filters.category || [];
+    const filterValues = {
+      category: "category",
+      formats: "formats",
+      purposes: "purposes",
+      timeSlots: "timeSlots",
+    };
 
-    return studentViewCoursesList.filter((course) =>
-      (!selectedCategories.length ||
-        selectedCategories.includes(course.category)) &&
-      (!query ||
+    return studentViewCoursesList.filter((course) => {
+      const matchesFilters = Object.entries(filterValues).every(
+        ([filterKey, courseKey]) => {
+          const selectedOptions = filters[filterKey] || [];
+          if (!selectedOptions.length) return true;
+
+          const courseValues = Array.isArray(course[courseKey])
+            ? course[courseKey]
+            : [course[courseKey]];
+          return selectedOptions.some((option) => courseValues.includes(option));
+        }
+      );
+      const matchesSearch =
+        !query ||
         [
           course?.title,
           course?.subtitle,
           course?.description,
           course?.instructorName,
-        ].some((value) => value?.toLocaleLowerCase().includes(query)))
-    );
-  }, [filters.category, searchQuery, studentViewCoursesList]);
+        ].some((value) => value?.toLocaleLowerCase().includes(query));
+
+      return matchesFilters && matchesSearch;
+    });
+  }, [filters, searchQuery, studentViewCoursesList]);
+  const activeFilterCount = Object.values(filters).reduce(
+    (count, selectedOptions) =>
+      count + (Array.isArray(selectedOptions) ? selectedOptions.length : 0),
+    0
+  );
+  const filterIcons = {
+    category: GraduationCap,
+    formats: BookOpen,
+    purposes: Target,
+    timeSlots: Clock3,
+  };
 
   function handleFilterOnChange(getSectionId, getCurrentOption) {
     const selectedOptions = filters[getSectionId] || [];
@@ -102,12 +138,7 @@ function StudentViewCoursesPage() {
 
   const fetchAllStudentViewCourses = useCallback(async (filters, sort) => {
     const requestId = ++requestIdRef.current;
-    const queryFilters = { ...filters };
-    delete queryFilters.category;
-    const query = new URLSearchParams({
-      ...queryFilters,
-      sortBy: sort,
-    });
+    const query = new URLSearchParams({ sortBy: sort });
     if (searchQuery.trim()) query.set("search", searchQuery.trim());
 
     setSearchError("");
@@ -150,10 +181,17 @@ function StudentViewCoursesPage() {
   useEffect(() => {
     setSort("title-atoz");
     const storedFilters = JSON.parse(sessionStorage.getItem("filters")) || {};
-    delete storedFilters.primaryLanguage;
-    delete storedFilters.level;
-    setFilters(storedFilters);
-    sessionStorage.setItem("filters", JSON.stringify(storedFilters));
+    const supportedFilters = Object.keys(filterOptions);
+    const initialFilters = Object.fromEntries(
+      Object.entries(storedFilters).filter(
+        ([key, value]) =>
+          supportedFilters.includes(key) &&
+          Array.isArray(value) &&
+          value.length > 0
+      )
+    );
+    setFilters(initialFilters);
+    sessionStorage.setItem("filters", JSON.stringify(initialFilters));
   }, []);
 
   useEffect(() => {
@@ -184,28 +222,78 @@ function StudentViewCoursesPage() {
         </p>
       </div>
       <div className="flex flex-col gap-6 lg:flex-row">
-        <aside className="h-fit w-full rounded-xl border border-slate-200 bg-white lg:sticky lg:top-24 lg:w-64">
-          <div>
+        <aside className="h-fit w-full shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-24 lg:w-72">
+          <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-4">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
+              </span>
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Filters</h2>
+                <p className="text-xs text-slate-500">
+                  {activeFilterCount
+                    ? `${activeFilterCount} selected`
+                    : "Find your course"}
+                </p>
+              </div>
+            </div>
+            {activeFilterCount > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-8 gap-1.5 px-2 text-xs text-slate-500 hover:text-blue-700"
+                onClick={() => {
+                  setFilters({});
+                  sessionStorage.setItem("filters", "{}");
+                }}
+              >
+                <RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />
+                Clear
+              </Button>
+            )}
+          </div>
+          <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-1">
             {Object.keys(filterOptions).map((sectionItem) => (
-              <div className="border-b border-slate-100 p-4 last:border-b-0" key={sectionItem}>
-                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <fieldset
+                className="border-b border-slate-100 p-4 last:border-b-0"
+                key={sectionItem}
+              >
+                <legend className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
+                  {(() => {
+                    const Icon = filterIcons[sectionItem];
+                    return (
+                      <Icon
+                        aria-hidden="true"
+                        className="h-4 w-4 text-blue-700"
+                      />
+                    );
+                  })()}
                   {sectionItem === "category"
-                    ? "Exam program"
-                    : sectionItem.replace(/([A-Z])/g, " $1")}
-                </h3>
-                <div className="mt-2 grid gap-2.5">
+                    ? "Course"
+                    : sectionItem === "formats"
+                      ? "Format"
+                      : sectionItem === "purposes"
+                        ? "Purpose"
+                        : "Time Slot"}
+                </legend>
+                {sectionItem === "formats" && (
+                  <p className="-mt-2 mb-2 text-xs text-slate-500">
+                    Select all that apply
+                  </p>
+                )}
+                <div className="grid gap-2.5">
                   {(sectionItem === "category"
                     ? courseCategoryOptions
                     : filterOptions[sectionItem]
                   ).map((option) => (
-                    <Label key={option.id} className="flex cursor-pointer items-center gap-3 text-sm font-normal text-slate-700">
+                    <Label
+                      key={option.id}
+                      className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 text-sm font-normal text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-800"
+                    >
                       <Checkbox
-                        checked={
-                          filters &&
-                          Object.keys(filters).length > 0 &&
-                          filters[sectionItem] &&
-                          filters[sectionItem].includes(option.id)
-                        }
+                        checked={(filters[sectionItem] || []).includes(
+                          option.id
+                        )}
                         onCheckedChange={() =>
                           handleFilterOnChange(sectionItem, option)
                         }
@@ -214,7 +302,7 @@ function StudentViewCoursesPage() {
                     </Label>
                   ))}
                 </div>
-              </div>
+              </fieldset>
             ))}
           </div>
         </aside>

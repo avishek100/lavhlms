@@ -23,13 +23,14 @@ export const initialSignInFormData = {
 export const courseExamOptions = [
   { id: "ielts-preparation", label: "IELTS Preparation" },
   { id: "pte-preparation", label: "PTE Preparation" },
+  { id: "duolingo-preparation", label: "Duolingo" },
+  { id: "celpip-preparation", label: "CELPIP" },
 ];
 
 export function getCourseCategoryLabel(category) {
-  return (
-    courseExamOptions.find((option) => option.id === category)?.label ||
-    category
-  );
+  const option = courseExamOptions.find((item) => item.id === category);
+  if (!option) return category;
+  return option.label.replace(/ Preparation$/, "");
 }
 
 export const courseLandingPageFormControls = [
@@ -86,6 +87,9 @@ export const courseLandingInitialFormData = {
   objectives: "",
   welcomeMessage: "",
   image: "",
+  formats: [],
+  purposes: [],
+  timeSlots: [],
 };
 
 export const courseCurriculumInitialFormData = [
@@ -105,5 +109,22 @@ export const sortOptions = [
 ];
 
 export const filterOptions = {
-  category: courseExamOptions,
+  category: courseExamOptions.map((option) => ({
+    ...option,
+    label: getCourseCategoryLabel(option.id),
+  })),
+  formats: [
+    { id: "full-course", label: "Full Course" },
+    { id: "crash-course", label: "Crash Course" },
+  ],
+  purposes: [
+    { id: "medical-professional", label: "Medical Professional" },
+    { id: "permanent-residency", label: "Permanent Residency (PR)" },
+    { id: "college-university-admission", label: "College/University admission" },
+  ],
+  timeSlots: [
+    { id: "morning", label: "Morning" },
+    { id: "afternoon", label: "Afternoon" },
+    { id: "evening", label: "Evening" },
+  ],
 };

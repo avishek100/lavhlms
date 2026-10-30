@@ -1,18 +1,25 @@
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { filterOptions } from "@/config";
 import { AuthContext } from "@/context/auth-context";
 import { StudentContext } from "@/context/student-context";
 import { fetchStudentViewCourseListService } from "@/services";
 import {
   ArrowRight,
   BookOpen,
+  Clock3,
   FileText,
   GraduationCap,
   Headphones,
+  RotateCcw,
   Search,
   Sparkles,
   ShieldCheck,
+  SlidersHorizontal,
+  Target,
 } from "lucide-react";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import banner from "../../../../public/banner-img.png";
 
@@ -23,8 +30,46 @@ function StudentHomePage() {
   const navigate = useNavigate();
   const [isLoadingCourses, setIsLoadingCourses] = useState(true);
   const [coursesError, setCoursesError] = useState("");
+  const [courseFilters, setCourseFilters] = useState({});
+  const filteredCourses = useMemo(
+    () =>
+      studentViewCoursesList.filter((course) =>
+        Object.entries(courseFilters).every(([field, selectedValues]) => {
+          if (!selectedValues.length) return true;
+          const courseValues = Array.isArray(course[field])
+            ? course[field]
+            : [course[field]];
+          return selectedValues.some((value) => courseValues.includes(value));
+        })
+      ),
+    [courseFilters, studentViewCoursesList]
+  );
+  const activeFilterCount = Object.values(courseFilters).reduce(
+    (count, selectedValues) => count + selectedValues.length,
+    0
+  );
+  const filterIcons = {
+    category: GraduationCap,
+    formats: BookOpen,
+    purposes: Target,
+    timeSlots: Clock3,
+  };
   const isPendingApproval =
     auth?.user?.role === "student" && auth.user.approved === false;
+
+  function handleCourseFilterChange(section, optionId) {
+    setCourseFilters((currentFilters) => {
+      const selectedValues = currentFilters[section] || [];
+      const nextValues = selectedValues.includes(optionId)
+        ? selectedValues.filter((value) => value !== optionId)
+        : [...selectedValues, optionId];
+
+      return {
+        ...currentFilters,
+        [section]: nextValues,
+      };
+    });
+  }
 
   function handleNavigateToCoursesPage(examProgramId) {
     sessionStorage.removeItem("filters");
@@ -72,7 +117,109 @@ function StudentHomePage() {
   }, [setStudentViewCoursesList]);
   return (
     <main className="min-h-screen bg-slate-50">
-      <section className="mx-auto grid max-w-7xl items-center gap-8 px-4 py-12 sm:px-6 md:py-16 lg:grid-cols-[1fr_1.1fr] lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-8 lg:px-8">
+        <aside className="h-fit overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-24 lg:self-start">
+          <div className="flex items-center justify-between border-b border-slate-100 bg-white px-4 py-4">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-900">
+                <SlidersHorizontal
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                />
+              </span>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-950">
+                  Filters
+                </h3>
+                <p className="text-xs text-slate-400">
+                  {activeFilterCount
+                    ? `${activeFilterCount} selected`
+                    : "Find your course"}
+                </p>
+              </div>
+            </div>
+            {activeFilterCount > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-8 gap-1.5 px-2 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-950"
+                onClick={() => setCourseFilters({})}
+              >
+                <RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />
+                Clear
+              </Button>
+            )}
+          </div>
+          <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-1">
+            {Object.entries(filterOptions).map(([section, options]) => {
+              const Icon = filterIcons[section];
+              const sectionTitle =
+                section === "category"
+                  ? "Course"
+                  : section === "formats"
+                    ? "Format"
+                    : section === "purposes"
+                      ? "Purpose"
+                      : "Time Slot";
+
+              return (
+                <fieldset
+                  className="border-b border-slate-100 px-4 py-3 last:border-b-0"
+                  key={section}
+                >
+                  <legend className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    <Icon
+                      aria-hidden="true"
+                      className="h-4 w-4 text-slate-800"
+                    />
+                    {sectionTitle}
+                  </legend>
+                  <div className="grid gap-0.5">
+                    {section === "formats" && (
+                      <Label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50">
+                        <Checkbox
+                          checked={
+                            (courseFilters[section] || []).length ===
+                            options.length
+                          }
+                          onCheckedChange={() =>
+                            setCourseFilters((currentFilters) => ({
+                              ...currentFilters,
+                              [section]:
+                                (currentFilters[section] || []).length ===
+                                options.length
+                                  ? []
+                                  : options.map((option) => option.id),
+                            }))
+                          }
+                        />
+                        Select all
+                      </Label>
+                    )}
+                    {options.map((option) => (
+                      <Label
+                        key={option.id}
+                        className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50"
+                      >
+                        <Checkbox
+                          checked={(courseFilters[section] || []).includes(
+                            option.id
+                          )}
+                          onCheckedChange={() =>
+                            handleCourseFilterChange(section, option.id)
+                          }
+                        />
+                        {option.label}
+                      </Label>
+                    ))}
+                  </div>
+                </fieldset>
+              );
+            })}
+          </div>
+        </aside>
+        <div className="min-w-0">
+      <section className="grid items-center gap-8 py-12 md:py-16 lg:grid-cols-[1fr_1.1fr]">
         <div className="max-w-xl">
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-3 py-1.5 text-sm font-medium text-blue-800">
             <Sparkles aria-hidden="true" className="h-4 w-4" />
@@ -149,7 +296,7 @@ function StudentHomePage() {
       </section>
 
       <section className="border-y border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="py-10">
           <div className="mb-6">
             <div>
               <p className="text-sm font-medium text-blue-700">
@@ -206,7 +353,7 @@ function StudentHomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      <section className="py-12">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-blue-700">
@@ -225,7 +372,7 @@ function StudentHomePage() {
             <Search aria-hidden="true" className="h-4 w-4" />
           </Button>
         </div>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {isLoadingCourses ? (
             <p className="col-span-full rounded-xl border border-slate-200 bg-white px-5 py-10 text-center text-sm text-slate-500">
               Loading preparation courses…
@@ -234,8 +381,8 @@ function StudentHomePage() {
             <p className="col-span-full rounded-xl border border-rose-200 bg-rose-50 px-5 py-10 text-center text-sm text-rose-700">
               {coursesError}
             </p>
-          ) : studentViewCoursesList && studentViewCoursesList.length > 0 ? (
-            studentViewCoursesList.map((courseItem) => (
+          ) : filteredCourses.length > 0 ? (
+            filteredCourses.map((courseItem) => (
               <div
                 key={courseItem?._id}
                 onClick={() => handleCourseNavigate(courseItem?._id)}
@@ -278,11 +425,15 @@ function StudentHomePage() {
             ))
           ) : (
             <p className="col-span-full rounded-xl border border-dashed border-slate-300 bg-white px-5 py-10 text-center text-sm text-slate-500">
-              No preparation courses are available yet. Check back soon.
+              {activeFilterCount
+                ? "No courses match these filters. Try changing or clearing your selections."
+                : "No preparation courses are available yet. Check back soon."}
             </p>
           )}
         </div>
       </section>
+        </div>
+      </div>
     </main>
   );
 }

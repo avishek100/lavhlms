@@ -13,6 +13,7 @@ import {
 import {
   courseExamOptions,
   courseLandingPageFormControls,
+  filterOptions,
 } from "@/config";
 import { InstructorContext } from "@/context/instructor-context";
 import PropTypes from "prop-types";
@@ -116,6 +117,77 @@ function CourseLanding({ categories = [] }) {
             </div>
           )}
         </div>
+        {[
+          ["formats", "Format"],
+          ["purposes", "Purpose"],
+          ["timeSlots", "Time Slot"],
+        ].map(([field, title]) => (
+          <fieldset className="mt-5 space-y-2" key={field}>
+            <legend className="text-sm font-medium text-slate-900">
+              {title}
+              {field === "formats" && (
+                <span className="ml-1 font-normal text-slate-500">
+                  (select all that apply)
+                </span>
+              )}
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {field === "formats" && (
+                <Label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    checked={
+                      (courseLandingFormData[field] || []).length ===
+                      filterOptions[field].length
+                    }
+                    onChange={() =>
+                      setCourseLandingFormData({
+                        ...courseLandingFormData,
+                        [field]:
+                          (courseLandingFormData[field] || []).length ===
+                          filterOptions[field].length
+                            ? []
+                            : filterOptions[field].map((option) => option.id),
+                      })
+                    }
+                    className="h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-blue-600"
+                  />
+                  Select all
+                </Label>
+              )}
+              {filterOptions[field].map((option) => {
+                const selectedValues = courseLandingFormData[field] || [];
+                const isSelected = selectedValues.includes(option.id);
+
+                return (
+                  <Label
+                    key={option.id}
+                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                      isSelected
+                        ? "border-blue-200 bg-blue-50 text-blue-800"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() =>
+                        setCourseLandingFormData({
+                          ...courseLandingFormData,
+                          [field]: isSelected
+                            ? selectedValues.filter((value) => value !== option.id)
+                            : [...selectedValues, option.id],
+                        })
+                      }
+                      className="h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-blue-600"
+                    />
+                    {option.label}
+                  </Label>
+                );
+              })}
+            </div>
+          </fieldset>
+        ))}
       </CardContent>
     </Card>
   );

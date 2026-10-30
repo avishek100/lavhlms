@@ -13,6 +13,26 @@ function hasInvalidCategory(category) {
   );
 }
 
+function hasInvalidCourseFilters(courseData) {
+  const allowedValues = {
+    formats: ["full-course", "crash-course"],
+    purposes: [
+      "medical-professional",
+      "permanent-residency",
+      "college-university-admission",
+    ],
+    timeSlots: ["morning", "afternoon", "evening"],
+  };
+
+  return Object.entries(allowedValues).some(([field, values]) => {
+    const selected = courseData[field];
+    return (
+      selected !== undefined &&
+      (!Array.isArray(selected) || selected.some((value) => !values.includes(value)))
+    );
+  });
+}
+
 function hasInvalidReadingMaterial(curriculum) {
   if (!Array.isArray(curriculum)) return true;
 
@@ -47,6 +67,12 @@ const addNewCourse = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Enter an exam program name up to 60 characters.",
+      });
+    }
+    if (hasInvalidCourseFilters(courseData)) {
+      return res.status(400).json({
+        success: false,
+        message: "Select valid course formats, purposes, and time slots.",
       });
     }
     if (hasInvalidLessonContent(courseData.curriculum)) {
@@ -136,6 +162,12 @@ const updateCourseByID = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Enter an exam program name up to 60 characters.",
+      });
+    }
+    if (hasInvalidCourseFilters(updatedCourseData)) {
+      return res.status(400).json({
+        success: false,
+        message: "Select valid course formats, purposes, and time slots.",
       });
     }
     if (hasInvalidLessonContent(updatedCourseData.curriculum)) {

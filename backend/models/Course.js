@@ -16,6 +16,18 @@ const CourseSchema = new mongoose.Schema({
   date: Date,
   title: String,
   category: { type: String, trim: true, maxlength: 60 },
+  formats: [{ type: String, enum: ["full-course", "crash-course"] }],
+  purposes: [
+    {
+      type: String,
+      enum: [
+        "medical-professional",
+        "permanent-residency",
+        "college-university-admission",
+      ],
+    },
+  ],
+  timeSlots: [{ type: String, enum: ["morning", "afternoon", "evening"] }],
   level: String,
   primaryLanguage: String,
   subtitle: String,
