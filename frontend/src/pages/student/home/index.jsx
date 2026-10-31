@@ -127,7 +127,7 @@ function StudentHomePage() {
   }, [setStudentViewCoursesList]);
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 sm:px-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-8 lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 pt-3 sm:px-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:gap-8 lg:px-8 lg:pt-0">
         <aside className="h-fit overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-24 lg:self-start">
           <div className="flex items-center justify-between border-b border-slate-100 bg-white px-4 py-4">
             <div className="flex items-center gap-2.5">

@@ -87,7 +87,7 @@ export default function AdminLayout() {
             Administration
           </p>
           <nav
-            className="flex gap-1 overflow-x-auto md:block md:space-y-1"
+            className="grid grid-cols-2 gap-1 sm:grid-cols-3 md:block md:space-y-1"
             aria-label="Admin navigation"
           >
             {navigationItems.map(({ label, to, icon: Icon, end }) => (
@@ -101,15 +101,15 @@ export default function AdminLayout() {
                     : label
                 }
                 className={({ isActive }) =>
-                  `flex h-10 shrink-0 items-center rounded-lg px-3 text-sm font-medium transition-colors ${
+                  `flex h-auto min-h-11 min-w-0 items-center rounded-lg px-2.5 text-xs font-medium transition-colors sm:px-3 sm:text-sm md:h-10 ${
                     isActive
                       ? "bg-blue-50 text-blue-800"
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   }`
                 }
               >
-                <Icon aria-hidden="true" className="mr-2 h-4 w-4" />
-                <span>{label}</span>
+                <Icon aria-hidden="true" className="mr-2 h-4 w-4 shrink-0" />
+                <span className="min-w-0 leading-4">{label}</span>
                 {label === "Contact messages" && hasUnreadContactMessages && (
                   <span
                     aria-hidden="true"
