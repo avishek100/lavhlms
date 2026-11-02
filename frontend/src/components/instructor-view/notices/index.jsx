@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { courseExamOptions, getStudentProgramLabel } from "@/config";
 import {
   createAdminNoticeService,
   fetchAdminNoticesService,
@@ -15,6 +16,8 @@ export default function AdminNotices() {
   const [notices, setNotices] = useState([]);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
+  const [audience, setAudience] = useState("college");
+  const [recipientProgram, setRecipientProgram] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
 
@@ -54,6 +57,8 @@ export default function AdminNotices() {
       const response = await createAdminNoticeService({
         title,
         message,
+        audience,
+        recipientProgram: audience === "program" ? recipientProgram : "",
       });
       toast.success(response.message || "Notice sent.");
       setTitle("");
@@ -75,11 +80,45 @@ export default function AdminNotices() {
             Send a notice
           </CardTitle>
           <p className="text-sm text-slate-500">
-            Your notice will be available to all students after they sign in.
+            Choose whether all students or only one exam program should receive
+            this notice.
           </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="notice-audience">Send to</Label>
+              <select
+                id="notice-audience"
+                value={audience}
+                onChange={(event) => setAudience(event.target.value)}
+                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
+              >
+                <option value="college">All students</option>
+                <option value="program">A specific exam program</option>
+              </select>
+            </div>
+            {audience === "program" && (
+              <div className="space-y-2">
+                <Label htmlFor="notice-program">Exam program</Label>
+                <select
+                  id="notice-program"
+                  value={recipientProgram}
+                  onChange={(event) => setRecipientProgram(event.target.value)}
+                  className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
+                  required
+                >
+                  <option value="" disabled>
+                    Select a program
+                  </option>
+                  {courseExamOptions.map((program) => (
+                    <option key={program.id} value={program.id}>
+                      {program.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="notice-title">Notice title</Label>
               <Input
@@ -130,7 +169,9 @@ export default function AdminNotices() {
                   </time>
                 </div>
                 <p className="mt-1 text-sm font-medium text-blue-700">
-                  All students
+                  {notice.audience === "program"
+                    ? `${getStudentProgramLabel(notice.recipientProgram)} students`
+                    : "All students"}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   Sent by {notice.senderName || "Administrator"}

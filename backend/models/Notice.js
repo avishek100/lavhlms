@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const studentPrograms = require("../utils/student-programs");
 
 const NoticeSchema = new mongoose.Schema(
   {
@@ -9,7 +10,8 @@ const NoticeSchema = new mongoose.Schema(
     },
     senderRole: { type: String, enum: ["admin", "instructor"] },
     senderName: { type: String, trim: true },
-    audience: { type: String, enum: ["college", "batch"] },
+    audience: { type: String, enum: ["college", "batch", "program"] },
+    recipientProgram: { type: String, enum: studentPrograms },
     studentClasses: [{ type: String, trim: true }],
     courseId: {
       type: mongoose.Schema.Types.ObjectId,

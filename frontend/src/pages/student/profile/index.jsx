@@ -2,14 +2,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { courseExamOptions, getStudentProgramLabel } from "@/config";
 import { AuthContext } from "@/context/auth-context";
 import {
   deleteProfileImageService,
   fetchProfileService,
+  updateOwnStudentProgramService,
   updateProfileImageService,
 } from "@/services";
 import {
   Camera,
+  Check,
   KeyRound,
   LoaderCircle,
   LogOut,
@@ -32,6 +35,7 @@ export default function StudentProfilePage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isRemovingImage, setIsRemovingImage] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isSavingProgram, setIsSavingProgram] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -121,6 +125,32 @@ export default function StudentProfilePage() {
       setNewPassword("");
       setConfirmPassword("");
       setProfile((current) => ({ ...current, mustChangePassword: false }));
+    }
+  }
+
+  async function handleProgramSubmit(event) {
+    event.preventDefault();
+    setIsSavingProgram(true);
+    try {
+      const response = await updateOwnStudentProgramService(
+        profile.studentProgram
+      );
+      if (!response?.success) {
+        toast.error(response?.message || "Unable to update your exam program.");
+        return;
+      }
+
+      setProfile((current) => ({
+        ...current,
+        studentProgram: response.data.studentProgram,
+      }));
+      toast.success(response.message || "Your exam program has been updated.");
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Unable to update your exam program."
+      );
+    } finally {
+      setIsSavingProgram(false);
     }
   }
 
@@ -274,6 +304,65 @@ export default function StudentProfilePage() {
               </dd>
             </div>
           </dl>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-xl border-blue-100 shadow-sm">
+        <CardHeader>
+          <CardTitle>Exam program</CardTitle>
+          <p className="text-sm leading-6 text-slate-500">
+            Changed your study plans? Update your program any time. Notices for
+            the selected program will be shown on your Notices page.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={handleProgramSubmit}
+            className="flex flex-col gap-3 sm:flex-row sm:items-end"
+          >
+            <div className="w-full space-y-2 sm:max-w-sm">
+              <Label htmlFor="profile-student-program">Current program</Label>
+              <select
+                id="profile-student-program"
+                value={profile.studentProgram || ""}
+                onChange={(event) =>
+                  setProfile((current) => ({
+                    ...current,
+                    studentProgram: event.target.value,
+                  }))
+                }
+                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
+                required
+              >
+                <option value="" disabled>
+                  Select a program
+                </option>
+                {courseExamOptions.map((program) => (
+                  <option key={program.id} value={program.id}>
+                    {program.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button
+              type="submit"
+              className="rounded-lg"
+              disabled={
+                isSavingProgram ||
+                !profile.studentProgram ||
+                !courseExamOptions.some(
+                  (program) => program.id === profile.studentProgram
+                )
+              }
+            >
+              <Check aria-hidden="true" className="mr-2 h-4 w-4" />
+              {isSavingProgram ? "Saving..." : "Save program"}
+            </Button>
+          </form>
+          <p className="mt-3 text-xs text-slate-500">
+            Currently selected:{" "}
+            {getStudentProgramLabel(profile.studentProgram) || "Not set"}
+          </p>
         </CardContent>
       </Card>
 

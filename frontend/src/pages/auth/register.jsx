@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { courseExamOptions } from "@/config";
 import { registerStudentAccountService } from "@/services";
 import { GraduationCap, ShieldCheck } from "lucide-react";
 import { useState } from "react";
@@ -11,6 +12,7 @@ const initialFormData = {
   studentName: "",
   userEmail: "",
   userPhone: "",
+  studentProgram: "",
   password: "",
   confirmPassword: "",
 };
@@ -40,6 +42,7 @@ export default function RegisterPage() {
         studentName: formData.studentName,
         userEmail: formData.userEmail,
         userPhone: formData.userPhone,
+        studentProgram: formData.studentProgram,
         password: formData.password,
       });
       if (!response?.success) {
@@ -146,6 +149,26 @@ export default function RegisterPage() {
                 onChange={updateField}
                 required
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="student-program">Exam program</Label>
+              <select
+                id="student-program"
+                name="studentProgram"
+                value={formData.studentProgram}
+                onChange={updateField}
+                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
+                required
+              >
+                <option value="" disabled>
+                  Select a program
+                </option>
+                {courseExamOptions.map((program) => (
+                  <option key={program.id} value={program.id}>
+                    {program.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="student-password">Password</Label>

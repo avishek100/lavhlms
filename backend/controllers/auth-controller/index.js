@@ -1,4 +1,5 @@
 const User = require("../../models/User");
+const studentPrograms = require("../../utils/student-programs");
 const Attendance = require("../../models/Attendance");
 const Course = require("../../models/Course");
 const CourseProgress = require("../../models/CourseProgress");
@@ -40,7 +41,7 @@ const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
       .select(
-        "_id userName userEmail userPhone studentNumber staffNumber parentName parentPhone address role image mustChangePassword approved"
+        "_id userName userEmail userPhone studentNumber staffNumber parentName parentPhone address role image studentProgram mustChangePassword approved"
       )
       .lean();
 
@@ -205,18 +206,23 @@ const createStudentAccount = async (req, res) => {
       typeof req.body.userEmail === "string"
         ? req.body.userEmail.trim().toLowerCase()
         : "";
+    const studentProgram =
+      typeof req.body.studentProgram === "string"
+        ? req.body.studentProgram
+        : "";
     if (
       !userName ||
       !parentName ||
       !parentPhone ||
       !address ||
       !userPhone ||
-      !userEmail
+      !userEmail ||
+      !studentPrograms.includes(studentProgram)
     ) {
       return res.status(400).json({
         success: false,
         message:
-          "Enter the student name, parent or guardian name, student and parent phone numbers, email, and address.",
+          "Enter the student details and choose a valid exam program.",
       });
     }
 
@@ -257,6 +263,7 @@ const createStudentAccount = async (req, res) => {
         parentName,
         parentPhone,
         address,
+        studentProgram,
         studentNumber: accountNumber,
         role: "student",
         collegeIssued: true,
@@ -286,6 +293,7 @@ const createStudentAccount = async (req, res) => {
         parentName: newUser.parentName,
         parentPhone: newUser.parentPhone,
         address: newUser.address,
+        studentProgram: newUser.studentProgram,
         studentNumber: newUser.studentNumber,
         role: newUser.role,
         initialPassword: INITIAL_STUDENT_PASSWORD,
@@ -311,11 +319,21 @@ const registerStudentAccount = async (req, res) => {
     const userPhone =
       typeof req.body.userPhone === "string" ? req.body.userPhone.trim() : "";
     const password = req.body.password;
+    const studentProgram =
+      typeof req.body.studentProgram === "string"
+        ? req.body.studentProgram
+        : "";
 
-    if (!userName || !userEmail || !userPhone || typeof password !== "string") {
+    if (
+      !userName ||
+      !userEmail ||
+      !userPhone ||
+      typeof password !== "string" ||
+      !studentPrograms.includes(studentProgram)
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Enter your name, email, phone number, and password.",
+        message: "Enter your details, choose a valid exam program, and provide a password.",
       });
     }
 
@@ -350,6 +368,7 @@ const registerStudentAccount = async (req, res) => {
         userName,
         userEmail,
         userPhone,
+        studentProgram,
         studentNumber: generateStudentNumber(),
         role: "student",
         collegeIssued: true,
@@ -374,6 +393,7 @@ const registerStudentAccount = async (req, res) => {
       data: {
         userName: newUser.userName,
         userEmail: newUser.userEmail,
+        studentProgram: newUser.studentProgram,
         studentNumber: newUser.studentNumber,
         approved: newUser.approved,
       },
@@ -394,7 +414,7 @@ const getStudents = async (req, res) => {
       collegeIssued: true,
     })
       .select(
-        "_id userName userEmail userPhone studentNumber parentName parentPhone address active approved"
+        "_id userName userEmail userPhone studentNumber parentName parentPhone address studentProgram active approved"
       )
       .sort({ userName: 1 })
       .lean();
@@ -447,6 +467,104 @@ const updateStudentStatus = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Unable to update student status.",
+    });
+  }
+};
+
+const updateStudentProgram = async (req, res) => {
+  try {
+    const { studentProgram } = req.body;
+    if (
+      typeof studentProgram !== "string" ||
+      (studentProgram !== "" && !studentPrograms.includes(studentProgram))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Choose a valid exam program or leave the student unassigned.",
+      });
+    }
+
+    const programUpdate =
+      studentProgram === ""
+        ? { $unset: { studentProgram: 1 } }
+        : { $set: { studentProgram } };
+    const student = await User.findOneAndUpdate(
+      {
+        _id: req.params.studentId,
+        role: "student",
+        collegeIssued: true,
+      },
+      programUpdate,
+      { new: true, runValidators: true }
+    ).select("_id userName studentNumber studentProgram");
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student account not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Student exam program updated.",
+      data: {
+        ...student.toObject(),
+        studentProgram: student.studentProgram || "",
+      },
+    });
+  } catch (error) {
+    console.error("Unable to update student exam program:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to update the student exam program.",
+    });
+  }
+};
+
+const updateOwnStudentProgram = async (req, res) => {
+  try {
+    if (req.user.role !== "student") {
+      return res.status(403).json({
+        success: false,
+        message: "Only students can update their exam program here.",
+      });
+    }
+
+    const { studentProgram } = req.body;
+    if (
+      typeof studentProgram !== "string" ||
+      !studentPrograms.includes(studentProgram)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Choose a valid exam program.",
+      });
+    }
+
+    const student = await User.findOneAndUpdate(
+      { _id: req.user._id, role: "student", collegeIssued: true },
+      { $set: { studentProgram } },
+      { new: true, runValidators: true }
+    ).select("_id studentProgram");
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student account not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Your exam program has been updated.",
+      data: { studentProgram: student.studentProgram },
+    });
+  } catch (error) {
+    console.error("Unable to update student's exam program:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to update your exam program.",
     });
   }
 };
@@ -1046,6 +1164,8 @@ module.exports = {
   createStudentAccount,
   registerStudentAccount,
   getStudents,
+  updateStudentProgram,
+  updateOwnStudentProgram,
   updateStudentStatus,
   updateStudentApproval,
   deleteStudentAccount,

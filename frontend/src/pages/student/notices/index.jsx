@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getStudentProgramLabel } from "@/config";
 import { fetchStudentNoticesService } from "@/services";
 import { Megaphone } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -55,7 +56,9 @@ export default function StudentNoticesPage() {
                 <div className="min-w-0 flex-1">
                   <CardTitle className="text-lg">{notice.title}</CardTitle>
                   <p className="mt-1 text-sm font-medium text-blue-700">
-                    All students
+                    {notice.audience === "program"
+                      ? `${getStudentProgramLabel(notice.recipientProgram)} students`
+                      : "All students"}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
                     Sent by {notice.senderName || "Teacher"}

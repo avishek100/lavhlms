@@ -11,6 +11,7 @@
 
 
 const mongoose = require("mongoose");
+const studentPrograms = require("../utils/student-programs");
 const UserSchema = new mongoose.Schema({
   userName: {
     type: String,
@@ -53,6 +54,10 @@ const UserSchema = new mongoose.Schema({
   studentClass: {
     type: String,
     trim: true,
+  },
+  studentProgram: {
+    type: String,
+    enum: studentPrograms,
   },
   active: {
     type: Boolean,

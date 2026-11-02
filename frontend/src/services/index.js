@@ -23,6 +23,14 @@ export async function updateStudentStatusService(studentId, active) {
   return data;
 }
 
+export async function updateStudentProgramService(studentId, studentProgram) {
+  const { data } = await axiosInstance.put(
+    `/auth/students/${studentId}/program`,
+    { studentProgram }
+  );
+  return data;
+}
+
 export async function updateStudentApprovalService(studentId, approved) {
   const { data } = await axiosInstance.put(
     `/auth/students/${studentId}/approval`,
@@ -40,6 +48,13 @@ export async function deleteStudentAccountService(studentId, adminPassword) {
 
 export async function fetchProfileService() {
   const { data } = await axiosInstance.get("/auth/profile");
+  return data;
+}
+
+export async function updateOwnStudentProgramService(studentProgram) {
+  const { data } = await axiosInstance.put("/auth/profile/program", {
+    studentProgram,
+  });
   return data;
 }
 

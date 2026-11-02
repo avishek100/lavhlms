@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { courseExamOptions } from "@/config";
 import { createStudentAccountService } from "@/services";
 import { UserPlus } from "lucide-react";
 import { useState } from "react";
@@ -14,6 +15,7 @@ const emptyStudentAccount = {
   userPhone: "",
   userEmail: "",
   address: "",
+  studentProgram: "",
 };
 
 export default function AdminAddStudent() {
@@ -137,6 +139,26 @@ export default function AdminAddStudent() {
                 onChange={updateStudentAccount}
                 required
               />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="student-program">Exam program</Label>
+              <select
+                id="student-program"
+                name="studentProgram"
+                value={studentAccount.studentProgram}
+                onChange={updateStudentAccount}
+                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
+                required
+              >
+                <option value="" disabled>
+                  Select a program
+                </option>
+                {courseExamOptions.map((program) => (
+                  <option key={program.id} value={program.id}>
+                    {program.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="student-address">Address</Label>

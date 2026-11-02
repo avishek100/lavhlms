@@ -3,6 +3,8 @@ const {
   createStudentAccount,
   registerStudentAccount,
   getStudents,
+  updateStudentProgram,
+  updateOwnStudentProgram,
   updateStudentStatus,
   updateStudentApproval,
   deleteStudentAccount,
@@ -60,6 +62,17 @@ router.get(
   authenticateMiddleware,
   requireAdministrator,
   getStudents
+);
+router.put(
+  "/students/:studentId/program",
+  authenticateMiddleware,
+  requireAdministrator,
+  updateStudentProgram
+);
+router.put(
+  "/profile/program",
+  authenticateMiddleware,
+  updateOwnStudentProgram
 );
 router.put(
   "/students/:studentId/status",

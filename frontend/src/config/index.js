@@ -27,6 +27,10 @@ export const courseExamOptions = [
   { id: "celpip-preparation", label: "CELPIP" },
 ];
 
+export function getStudentProgramLabel(program) {
+  return courseExamOptions.find((option) => option.id === program)?.label || "";
+}
+
 export function getCourseCategoryLabel(category) {
   const option = courseExamOptions.find((item) => item.id === category);
   if (!option) return category;

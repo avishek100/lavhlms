@@ -15,12 +15,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
 import {
   deleteStudentAccountService,
   fetchStudentsService,
   updateStudentApprovalService,
+  updateStudentProgramService,
   updateStudentStatusService,
 } from "@/services";
+import { courseExamOptions, getStudentProgramLabel } from "@/config";
 import { Trash2, UserRoundCheck, UserRoundX, Users } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
@@ -102,6 +105,39 @@ export default function AdminStudents() {
     } catch (error) {
       toast.error(
         error?.response?.data?.message || "Unable to approve student."
+      );
+    } finally {
+      setUpdatingStudentId(null);
+    }
+  }
+
+  async function handleUpdateStudentProgram() {
+    if (!selectedStudent) return;
+    setUpdatingStudentId(selectedStudent._id);
+    try {
+      const response = await updateStudentProgramService(
+        selectedStudent._id,
+        selectedStudent.studentProgram || ""
+      );
+      if (!response?.success) {
+        toast.error(response?.message || "Unable to update student program.");
+        return;
+      }
+
+      toast.success(response.message || "Student exam program updated.");
+      setStudents((current) =>
+        current.map((student) =>
+          student._id === selectedStudent._id
+            ? { ...student, ...response.data }
+            : student
+        )
+      );
+      setSelectedStudent((current) =>
+        current ? { ...current, ...response.data } : current
+      );
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Unable to update student program."
       );
     } finally {
       setUpdatingStudentId(null);
@@ -310,6 +346,37 @@ export default function AdminStudents() {
                   {selectedStudent.address || "Not provided"}
                 </dd>
               </div>
+              <div className="sm:col-span-2">
+                <Label
+                  htmlFor="student-program"
+                  className="text-sm text-slate-500"
+                >
+                  Exam program
+                </Label>
+                <select
+                  id="student-program"
+                  value={selectedStudent.studentProgram || ""}
+                  onChange={(event) =>
+                    setSelectedStudent((current) => ({
+                      ...current,
+                      studentProgram: event.target.value,
+                    }))
+                  }
+                  className="mt-1 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-700"
+                >
+                  <option value="">Unassigned</option>
+                  {courseExamOptions.map((program) => (
+                    <option key={program.id} value={program.id}>
+                      {program.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-slate-500">
+                  {getStudentProgramLabel(selectedStudent.studentProgram) ||
+                    "Unassigned"}{" "}
+                  students receive notices targeted to this program.
+                </p>
+              </div>
               <div>
                 <dt className="text-sm text-slate-500">Account status</dt>
                 <dd className="font-medium">
@@ -317,6 +384,16 @@ export default function AdminStudents() {
                 </dd>
               </div>
             </dl>
+            <Button
+              variant="outline"
+              className="w-full sm:w-fit"
+              disabled={updatingStudentId === selectedStudent._id}
+              onClick={handleUpdateStudentProgram}
+            >
+              {updatingStudentId === selectedStudent._id
+                ? "Saving..."
+                : "Save exam program"}
+            </Button>
             {selectedStudent.approved === false && (
               <Button
                 className="w-full sm:w-fit"
