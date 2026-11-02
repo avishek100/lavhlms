@@ -23,7 +23,7 @@ const authenticate = async (req, res, next) => {
   } catch (e) {
     return res.status(401).json({
       success: false,
-      message: "invalid token",
+      message: "Session expired. Please log in again.",
     });
   }
 

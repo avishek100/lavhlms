@@ -14,7 +14,6 @@ import {
   Headphones,
   RotateCcw,
   Search,
-  Sparkles,
   ShieldCheck,
   SlidersHorizontal,
   Target,
@@ -242,10 +241,6 @@ function StudentHomePage() {
         <div className="min-w-0">
       <section className="grid items-center gap-8 py-12 md:py-16 lg:grid-cols-[1fr_1.1fr]">
         <div className="max-w-xl">
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-3 py-1.5 text-sm font-medium text-blue-800">
-            <Sparkles aria-hidden="true" className="h-4 w-4" />
-            IELTS &amp; PTE preparation
-          </div>
           <h1 className="text-4xl font-semibold leading-tight tracking-tight text-slate-950 sm:text-5xl">
             Feel ready for your English test.
           </h1>
@@ -324,7 +319,7 @@ function StudentHomePage() {
                 Choose your exam
               </p>
               <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-                Prepare for IELTS or PTE
+                Prepare for your English test
               </h2>
             </div>
           </div>
@@ -344,12 +339,30 @@ function StudentHomePage() {
                   "Find focused practice to help you prepare for the PTE test.",
                 icon: Headphones,
               },
-            ].map(({ path, name, description, icon: Icon }) => (
+              {
+                name: "Duolingo",
+                category: "duolingo-preparation",
+                description:
+                  "Build your skills with focused practice for the Duolingo English Test.",
+                icon: BookOpen,
+              },
+              {
+                name: "CELPIP",
+                category: "celpip-preparation",
+                description:
+                  "Explore lessons and practice materials for your CELPIP preparation.",
+                icon: GraduationCap,
+              },
+            ].map(({ path, category, name, description, icon: Icon }) => (
               <Button
                 className="h-auto justify-between gap-5 whitespace-normal rounded-xl border-slate-200 bg-white p-5 text-left text-slate-700 shadow-none hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800"
                 variant="outline"
                 key={name}
-                onClick={() => navigate(path)}
+                onClick={() =>
+                  path
+                    ? navigate(path)
+                    : handleNavigateToCoursesPage(category)
+                }
               >
                 <span className="flex items-start gap-4">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
